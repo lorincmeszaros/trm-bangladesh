@@ -7,6 +7,7 @@ Created on Tue Nov 15 15:44:47 2022
 import numpy as np
 import math as math
 import pcraster as pcr
+from matplotlib import pyplot as plt 
 
 model_params = {
     "height": 100,
@@ -15,7 +16,6 @@ model_params = {
     "subsidence": 2, #UserSettableParameter("slider", "Soil subsidence rate (cm/year)", 2, 0, 10, 1),
     "sedrate": 3, #UserSettableParameter("slider", "Sedimentation Rate Outside Polders (cm/year)", 3, 0, 10, 1),
     "trmsedrate": 20, #UserSettableParameter("slider", "Sedimentation Rate TRM Polders (cm/year)", 20, 0, 100, 1),
-    "showvar": 'Polders'#UserSettableParameter('choice', 'Select variable to show on map', value='Polders', choices=['Elevation', 'Polders', 'Productivity'])
 }
 
 #Main model
@@ -75,11 +75,11 @@ dist2seamat = pcr.pcr2numpy(pcrdist2sea,-999)
 pcr.report(pcrdist2sea,r'p:\11208012-011-nabaripoma\Model\Mesa\NaBaRiPoMa01\dist2sea.map')
 
 
-
 for year in np.arange(startyear, endyear+1,1):
     """
     Run one step of the model. 
     """
+    print(year)
     # Sea Level Rise        
     msl =  mslstart + slr2100 / (math.exp(kslr * (endyear - startyear)) - math.exp(0)) * (math.exp( kslr * ( year - startyear)) - 1)
     #recalculate based on new elevation
@@ -96,222 +96,61 @@ for year in np.arange(startyear, endyear+1,1):
     pcrdist2sea = pcr.ldddist(pcrldd,pcrsea,1.)
     dist2seamat = pcr.pcr2numpy(pcrdist2sea,-999)
     
-    
     #Physics calculation
-    self.pos = pos
-    self.type = 1
-    self.z = z
-    self.rs = rs
-    self.pol = pol
-    self.model = model
-    self.rspid = 100 * rs + pol
-    self.dist2riv = dist2riv
-    self.dist2sea = dist2sea
-    self.productivity = 0.0
-    self.is_waterlogged = False
-    self.is_trm = False
-    self.is_waterlogged = False
-    if rs == 1:
-        self.is_sea = True
-        self.is_river=False
-        self.is_polder = False
-        self.is_nopolder = False
-        self.is_land = False
-    elif rs == 2:
-        self.is_sea = False
-        self.is_river= True
-        self.is_polder = False
-        self.is_nopolder = False
-        self.is_land = False
-    elif rs == 0:
-        self.is_sea = False
-        self.is_river= False
-        self.is_land = True
-        if pol == 0:
-            self.is_polder = False
-            self.is_nopolder = True
-        else:
-            self.is_polder = True
-            self.is_nopolder = False
-            self.polid = pol
-    
-    # Set up environment agents
-    for cell in self.grid.coord_iter():
-        x = cell[1]
-        y = cell[2]
-        z = elevmat[height - y - 1,x]
-        rs = rsmat[height - y - 1,x]
-        pol = polmat[height - y - 1,x]
-        dist2riv = dist2rivmat[height - y - 1,x]
-        dist2sea = dist2seamat[height - y - 1,x]
+    productivity = 0.0
+    is_waterlogged = np.full(np.shape(elevmat),False)
+    is_trm = np.full(np.shape(elevmat),False)
+
+    is_sea = rsmat==1
+    is_river = rsmat == 2
+    is_polder = polmat > 0
+    is_nopolder = polmat == 0
+    is_land = rsmat == 0
+
     
     # update topography
-    if is_land: 
-        # soil subsidence
-        z = z - subsidence * 0.01
-        #sedimentation on land outside polders
-        if is_nopolder:
-            z = z + sedrate * 0.01
-        #sedimentation in trm areas
-        if is_trm:
-            z = z + trmsedrate * 0.01
-    
-        elevmat[height - y - 1,x] = z
+    # soil subsidence
+    elevmat[is_land] = elevmat[is_land] - subsidence * 0.01
+    #sedimentation on land outside polders
+    elevmat[is_land & is_nopolder] = elevmat[is_land & is_nopolder] + sedrate * 0.01
+    #sedimentation in trm areas
+    elevmat[is_trm] = elevmat[is_trm] + trmsedrate * 0.01
     
     #tidal range - for the moment a linear decrease with 2cm per km from 2m at sea
-    tidalrange = 2. - 0.02 * dist2sea
-    if tidalrange < 0.: tidalrange = 0.
-    #flood depth - high tide minus elevation
-    if ((is_nopolder) or (is_trm) or (is_river)):
-        flooddepth = msl + tidalrange * 0.5 - z
-        if flooddepth < 0.: flooddepth = 0.
-    else:
-        flooddepth = 0.
+    tidalrange = 2. - 0.02 * dist2seamat
+    tidalrange[tidalrange < 0.]= 0.
+    # #flood depth - high tide minus elevation
+    flooddepth=np.zeros(np.shape(elevmat))
+    flooddepth[((is_nopolder) | (is_trm) | (is_river))] = msl + tidalrange[((is_nopolder) | (is_trm) | (is_river))] * 0.5 - elevmat[((is_nopolder) | (is_trm) | (is_river))]
+    flooddepth[flooddepth < 0.] = 0.
         
-    #upstream drainage area for each river cell as number of nopolder and trm cells with pycor > pycor of the patch itself    
-    if (is_river):    
-        rivy = pos[1]
-        usdraina = 0.
-        prism = 0.
-        for cell in self.model.grid.coord_iter():
-            y = cell[2]
-            upagent = cell[0]
-            if (y > rivy) and ((upagent.is_nopolder) or (upagent.is_trm) or (upagent.is_river)):
-                usdraina += 1
-                prism += upagent.flooddepth
-    
+    # #upstream drainage area for each river cell as number of nopolder and trm cells with pycor > pycor of the patch itself    
+    # if (is_river):    
+    #     rivy = pos[1]
+    #     usdraina = 0.
+    #     prism = 0.
+    #     y = cell[2]
+    #     upagent = cell[0]
+    #     if (y > rivy) and ((upagent.is_nopolder) or (upagent.is_trm) or (upagent.is_river)):
+    #         usdraina += 1
+    #         prism += upagent.flooddepth
     
         #upstream flow - perhaps later, for now zero
         
         #polder drainage - perhaps later, for now zero
         
     #water logging - patches with gradient less than drainhead to low tide
-    if (is_land):
-        gradient = (z - (msl - 0.5 * tidalrange )) / dist2riv
-        if gradient < mindraingrad:
-            is_waterlogged = True
-    else:
-        is_waterlogged = False
+    gradient=np.full(np.shape(elevmat),-999)
+    gradient[is_land] = (elevmat[is_land] - (msl - 0.5 * tidalrange[is_land] )) / dist2rivmat[is_land]
+    is_waterlogged[(is_land) & (gradient < mindraingrad)] = True
     
+    #plot
+    plt.imshow(is_waterlogged)
+    plt.title(year)
+    plt.show()
+
     #river flow
     
     #river bed --> update elevation
     
     #river salt - later, for now fixed
-
-####
-class EnvAgent():
-    """
-    Agent to describe the environment attributes like elevation, river, sea, polder
-    """
-
-    def __init__(self, pos, model, z, rs, pol, dist2riv, dist2sea):
-        """
-        Create a new elevation agent.
-
-        Args:
-           pos(x, y): Agent initial location.
-           z: elevation (m)
-           rs: river / sea code
-           pol: polder code
-        """
-        super().__init__(pos, model)
-        self.pos = pos
-        self.type = 1
-        self.z = z
-        self.rs = rs
-        self.pol = pol
-        self.model = model
-        self.rspid = 100 * rs + pol
-        self.dist2riv = dist2riv
-        self.dist2sea = dist2sea
-        self.productivity = 0.0
-        self.is_waterlogged = False
-        self.is_trm = False
-        self.is_waterlogged = False
-        if rs == 1:
-            self.is_sea = True
-            self.is_river=False
-            self.is_polder = False
-            self.is_nopolder = False
-            self.is_land = False
-        elif rs == 2:
-            self.is_sea = False
-            self.is_river= True
-            self.is_polder = False
-            self.is_nopolder = False
-            self.is_land = False
-        elif rs == 0:
-            self.is_sea = False
-            self.is_river= False
-            self.is_land = True
-            if pol == 0:
-                self.is_polder = False
-                self.is_nopolder = True
-            else:
-                self.is_polder = True
-                self.is_nopolder = False
-                self.polid = pol
-            
-
-        def step1(self):
-        """
-        Run stage one of step for the environmental agent
-        """
-        # update topography
-        if self.is_land: 
-            # soil subsidence
-            self.z = self.z - self.model.subsidence * 0.01
-            #sedimentation on land outside polders
-            if self.is_nopolder:
-                self.z = self.z + self.model.sedrate * 0.01
-            #sedimentation in trm areas
-            if self.is_trm:
-                self.z = self.z + self.model.trmsedrate * 0.01
-        
-            self.model.elevmat[self.model.height - self.y - 1,self.x] = self.z
-        
-        #tidal range - for the moment a linear decrease with 2cm per km from 2m at sea
-        self.tidalrange = 2. - 0.02 * self.dist2sea
-        if self.tidalrange < 0.: self.tidalrange = 0.
-        #flood depth - high tide minus elevation
-        if ((self.is_nopolder) or (self.is_trm) or (self.is_river)):
-            self.flooddepth = self.model.msl + self.tidalrange * 0.5 - self.z
-            if self.flooddepth < 0.: self.flooddepth = 0.
-        else:
-            self.flooddepth = 0.
-            
-        def step2(self):
-        """
-        Run stage two of step for the environmental agent
-        """
-        if (self.is_river):
-            #upstream drainage area for each river cell as number of nopolder and trm cells with pycor > pycor of the patch itself
-            rivy = self.pos[1]
-            usdraina = 0.
-            prism = 0.
-            for cell in self.model.grid.coord_iter():
-                y = cell[2]
-                upagent = cell[0]
-                if (y > rivy) and ((upagent.is_nopolder) or (upagent.is_trm) or (upagent.is_river)):
-                    usdraina += 1
-                    prism += upagent.flooddepth
-        
-        
-            #upstream flow - perhaps later, for now zero
-            
-            #polder drainage - perhaps later, for now zero
-            
-        #water logging - patches with gradient less than drainhead to low tide
-        if (self.is_land):
-            gradient = (self.z - (self.model.msl - 0.5 * self.tidalrange )) / self.dist2riv
-            if gradient < self.model.mindraingrad:
-                self.is_waterlogged = True
-        else:
-            self.is_waterlogged = False
-        
-        #river flow
-        
-        #river bed --> update elevation
-        
-        #river salt - later, for now fixed
