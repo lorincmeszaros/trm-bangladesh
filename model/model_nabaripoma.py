@@ -211,7 +211,7 @@ for year in np.arange(startyear, endyear+1,1):
     plt.colorbar(f2,ax=ax2)
     f.suptitle(year, fontsize=16, x=0.6)
     plt.tight_layout()
-    plt.savefig(r'p:\11208012-011-nabaripoma\Model\Python\results\waterlogging\waterlogging_' + str(year), dpi=300)
+    plt.savefig(r'p:\11208012-011-nabaripoma\Model\Python\results\waterlogging\waterlogging_' + str(year) + '.png', format='png', bbox_inches='tight', dpi=300)
     plt.show()
 
     #river flow
