@@ -174,11 +174,11 @@ for year in np.arange(startyear, endyear+1,1):
     flooddepth=np.zeros(np.shape(elevmat))
     flooddepth[((is_nopolder) | (is_trm) | (is_river))] = msl + tidalrange[((is_nopolder) | (is_trm) | (is_river))] * 0.5 - elevmat[((is_nopolder) | (is_trm) | (is_river))]
     flooddepth[flooddepth < 0.] = 0.
-    #plot
-    plt.matshow(flooddepth)
-    plt.title('flooddepth')
-    plt.colorbar()
-    plt.show()
+    # #plot
+    # plt.matshow(flooddepth)
+    # plt.title('flooddepth')
+    # plt.colorbar()
+    # plt.show()
         
     # #upstream drainage area for each river cell as number of nopolder and trm cells with pycor > pycor of the patch itself    
     # if (is_river):    
