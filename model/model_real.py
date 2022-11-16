@@ -10,10 +10,9 @@ import numpy as np
 import math as math
 import pcraster as pcr
 from matplotlib import pyplot as plt 
+import xarray as xr
 
 model_params = {
-    "height": 100,
-    "width": 20,
     "slr2100": 1, #UserSettableParameter("slider", "Mean Sea Level Rise to 2100 (m)", 1.00, 0.00, 5.00, 0.01),
     "subsidence": 2, #UserSettableParameter("slider", "Soil subsidence rate (cm/year)", 2, 0, 10, 1),
     "sedrate": 10, #UserSettableParameter("slider", "Sedimentation Rate Outside Polders (cm/year)", 3, 0, 10, 1),
@@ -21,8 +20,6 @@ model_params = {
 }
 
 #Main model
-height = model_params['height']
-width = model_params['width']
 slr2100 = model_params['slr2100']
 subsidence = model_params['subsidence']
 sedrate = model_params['sedrate']
@@ -36,24 +33,31 @@ mindraingrad = 0.1 / 1000. # 10cm per km minimum drainage gradient
 year = startyear
 msl = 0.00
    
-# Read the elevation from elevation.asc
-elevmat = np.loadtxt(r'p:\11208012-011-nabaripoma\Model\Mesa\NaBaRiPoMa01\elevation.asc', delimiter = ' ', skiprows = 6) * 0.01
+# Read the elevation
+elev_raster = xr.open_rasterio(r'p:\11208012-011-nabaripoma\Data\elevation.tif')
+elevmat = elev_raster.to_numpy().squeeze()*0.01
+# Read raster using xarray
+
 #plot
 plt.matshow(elevmat)
 plt.title('elevation')
 plt.colorbar()
 plt.show()
 
-# read the location of rivers from file rs.asc
-rsmat = np.loadtxt(r'p:\11208012-011-nabaripoma\Model\Mesa\NaBaRiPoMa01\rs.asc', delimiter = ' ', skiprows = 6)
+# read the location of rivers and sea
+rs_raster = xr.open_rasterio(r'p:\11208012-011-nabaripoma\Data\rivers.tif')
+rsmat = rs_raster.to_numpy().squeeze()
+rsmat[-5:,:]=2
+
 #plot
 plt.matshow(rsmat)
-plt.title('location of rivers')
+plt.title('location of rivers and sea')
 plt.colorbar()
 plt.show()
 
 # read the location of polders from file polder.asc
-polmat = np.loadtxt(r'p:\11208012-011-nabaripoma\Model\Mesa\NaBaRiPoMa01\Polders.asc', delimiter = ' ', skiprows = 6)
+pol_raster = xr.open_rasterio(r'p:\11208012-011-nabaripoma\Data\polders.tif')
+polmat = pol_raster.to_numpy().squeeze()
 #plot
 plt.matshow(polmat)
 plt.title('location of polders')
@@ -62,6 +66,8 @@ plt.show()
 
 #initial pcraster calculation
 #set clonemap
+height = np.shape(elevmat)[0]
+width = np.shape(elevmat)[1]
 pcr.setclone(height, width, 1, 0, 0)
 #set floodelevmat with polders 10m higher
 floodelevmat = np.where(polmat > 0, elevmat + 10., elevmat)
@@ -73,14 +79,14 @@ plt.show()
 
 #convert numpay arrays to PCR rasters
 pcrelev = pcr.numpy2pcr(pcr.Scalar, elevmat, -999.)
-pcr.report(pcrelev, r'p:\11208012-011-nabaripoma\Model\Python\results\maps\elevation.map')
+pcr.report(pcrelev, r'p:\11208012-011-nabaripoma\Model\Python\results\real\maps\elevation.map')
 pcrfloodelev = pcr.numpy2pcr(pcr.Scalar, elevmat, -999.)
-pcr.report(pcrfloodelev, r'p:\11208012-011-nabaripoma\Model\Python\results\maps\floodelevation.map')
+pcr.report(pcrfloodelev, r'p:\11208012-011-nabaripoma\Model\Python\results\real\maps\floodelevation.map')
 #create ldd
 pcr.setglobaloption('lddin')
 pcr.setglobaloption('unittrue')
 pcrldd = pcr.lddcreate(pcrelev,9999999,9999999,9999999,9999999)
-pcr.report(pcrldd, r'p:\11208012-011-nabaripoma\Model\Python\results\maps\ldd.map')
+pcr.report(pcrldd, r'p:\11208012-011-nabaripoma\Model\Python\results\real\maps\ldd.map')
 lddmat = pcr.pcr2numpy(pcrldd,-999)
 #plot
 plt.matshow(lddmat)
@@ -89,14 +95,14 @@ plt.colorbar()
 plt.show()
 
 #create river and sea array
-rivmat = np.where(rsmat == 2, 1, 0)
+rivmat = np.where(rsmat == 1, 1, 0)
 #plot
 plt.matshow(rivmat)
 plt.title('river')
 plt.colorbar()
 plt.show()
 
-seamat = np.where(rsmat == 1, 1, 0)
+seamat = np.where(rsmat == 2, 1, 0)
 #plot
 plt.matshow(seamat)
 plt.title('sea')
@@ -110,12 +116,12 @@ pcrsea = pcr.numpy2pcr(pcr.Boolean, seamat, -999.)
 pcrdist2riv = pcr.ldddist(pcrldd,pcrriv,1.)
 dist2rivmat = pcr.pcr2numpy(pcrdist2riv,-999)
 #plot
-plt.matshow(dist2rivmat, vmin=0, vmax=20)
+plt.matshow(dist2rivmat)
 plt.title('dist2riv_ldd')
 plt.colorbar()
 plt.show()
 
-pcr.report(pcrdist2riv,r'p:\11208012-011-nabaripoma\Model\Python\results\maps\dist2riv.map')
+pcr.report(pcrdist2riv,r'p:\11208012-011-nabaripoma\Model\Python\results\real\maps\dist2riv.map')
 
 #calculate distance to sea over ldd
 pcrdist2sea = pcr.ldddist(pcrldd,pcrsea,1.)
@@ -126,7 +132,7 @@ plt.title('dist2sea_ldd')
 plt.colorbar()
 plt.show()
 
-pcr.report(pcrdist2sea,r'p:\11208012-011-nabaripoma\Model\Python\results\maps\dist2sea.map')
+pcr.report(pcrdist2sea,r'p:\11208012-011-nabaripoma\Model\Python\results\real\maps\dist2sea.map')
 
 for year in np.arange(startyear, endyear+1,1):
     """
@@ -229,9 +235,9 @@ for year in np.arange(startyear, endyear+1,1):
 
 
     #plot
-    plt.rcParams["figure.figsize"] = [10, 10]
+    plt.rcParams["figure.figsize"] = [20, 20]
     f, (ax1, ax2, ax3) = plt.subplots(1,3, sharex=True, sharey=True)
-    f1=ax1.matshow(elevmat, vmin=-5, vmax = 3)
+    f1=ax1.matshow(elevmat, vmin=-1, vmax = 1)
     ax1.set_title('elevation')
     plt.colorbar(f1,ax=ax1)
     f2=ax2.matshow(waterlogged_sev_dry, vmin=0, vmax = 1)
@@ -240,9 +246,9 @@ for year in np.arange(startyear, endyear+1,1):
     f3=ax3.matshow(waterlogged_sev_wet, vmin=0, vmax = 1)
     ax3.set_title('waterlogged_sev_wet')
     plt.colorbar(f3,ax=ax3)
-    f.suptitle(year, fontsize=16, x=0.6)
+    f.suptitle(year, fontsize=16, x=0.5)
     plt.tight_layout()
-    plt.savefig(r'p:\11208012-011-nabaripoma\Model\Python\results\waterlogging\waterlogging_' + str(year) + '.png', format='png', bbox_inches='tight', dpi=300)
+    plt.savefig(r'p:\11208012-011-nabaripoma\Model\Python\results\real\waterlogging\waterlogging_' + str(year) + '.png', format='png', bbox_inches='tight', dpi=300)
     plt.show()
 
     #river flow
