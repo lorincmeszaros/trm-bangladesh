@@ -73,14 +73,14 @@ plt.show()
 
 #convert numpay arrays to PCR rasters
 pcrelev = pcr.numpy2pcr(pcr.Scalar, elevmat, -999.)
-pcr.report(pcrelev, r'p:\11208012-011-nabaripoma\Model\Python\results\elevation.map')
+pcr.report(pcrelev, r'p:\11208012-011-nabaripoma\Model\Python\results\maps\elevation.map')
 pcrfloodelev = pcr.numpy2pcr(pcr.Scalar, floodelevmat, -999.)
-pcr.report(pcrfloodelev, r'p:\11208012-011-nabaripoma\Model\Python\results\floodelevation.map')
+pcr.report(pcrfloodelev, r'p:\11208012-011-nabaripoma\Model\Python\results\maps\floodelevation.map')
 #create ldd
 pcr.setglobaloption('lddin')
 pcr.setglobaloption('unittrue')
 pcrldd = pcr.lddcreate(pcrfloodelev,9999999,9999999,9999999,9999999)
-pcr.report(pcrldd, r'p:\11208012-011-nabaripoma\Model\Python\results\ldd.map')
+pcr.report(pcrldd, r'p:\11208012-011-nabaripoma\Model\Python\results\maps\ldd.map')
 lddmat = pcr.pcr2numpy(pcrldd,-999)
 #plot
 plt.matshow(lddmat)
@@ -110,23 +110,23 @@ pcrsea = pcr.numpy2pcr(pcr.Boolean, seamat, -999.)
 pcrdist2riv = pcr.ldddist(pcrldd,pcrriv,1.)
 dist2rivmat = pcr.pcr2numpy(pcrdist2riv,-999)
 #plot
-plt.matshow(dist2rivmat)
+plt.matshow(dist2rivmat, vmin=0, vmax=20)
 plt.title('dist2riv_ldd')
 plt.colorbar()
 plt.show()
 
-pcr.report(pcrdist2riv,r'p:\11208012-011-nabaripoma\Model\Mesa\NaBaRiPoMa01\dist2riv.map')
+pcr.report(pcrdist2riv,r'p:\11208012-011-nabaripoma\Model\Python\results\maps\dist2riv.map')
 
 #calculate distance to sea over ldd
 pcrdist2sea = pcr.ldddist(pcrldd,pcrsea,1.)
 dist2seamat = pcr.pcr2numpy(pcrdist2sea,-999)
 #plot
-plt.matshow(dist2seamat)
+plt.matshow(dist2seamat, vmin=0, vmax=100)
 plt.title('dist2sea_ldd')
 plt.colorbar()
 plt.show()
 
-pcr.report(pcrdist2sea,r'p:\11208012-011-nabaripoma\Model\Mesa\NaBaRiPoMa01\dist2sea.map')
+pcr.report(pcrdist2sea,r'p:\11208012-011-nabaripoma\Model\Python\results\maps\dist2sea.map')
 
 for year in np.arange(startyear, endyear+1,1):
     """
@@ -150,7 +150,7 @@ for year in np.arange(startyear, endyear+1,1):
     dist2seamat = pcr.pcr2numpy(pcrdist2sea,-999)
     
     #Physics calculation
-    is_waterlogged = np.full(np.shape(elevmat),False)
+    is_waterlogged = np.full(np.shape(elevmat),False)    
     is_trm = np.full(np.shape(elevmat),False)
 
     is_sea = rsmat==1
@@ -159,7 +159,6 @@ for year in np.arange(startyear, endyear+1,1):
     is_nopolder = polmat == 0
     is_land = rsmat == 0
 
-    
     # update topography
     # soil subsidence
     elevmat[is_land] = elevmat[is_land] - subsidence * 0.01
@@ -175,6 +174,11 @@ for year in np.arange(startyear, endyear+1,1):
     flooddepth=np.zeros(np.shape(elevmat))
     flooddepth[((is_nopolder) | (is_trm) | (is_river))] = msl + tidalrange[((is_nopolder) | (is_trm) | (is_river))] * 0.5 - elevmat[((is_nopolder) | (is_trm) | (is_river))]
     flooddepth[flooddepth < 0.] = 0.
+    #plot
+    plt.matshow(flooddepth)
+    plt.title('flooddepth')
+    plt.colorbar()
+    plt.show()
         
     # #upstream drainage area for each river cell as number of nopolder and trm cells with pycor > pycor of the patch itself    
     # if (is_river):    
@@ -194,11 +198,20 @@ for year in np.arange(startyear, endyear+1,1):
     #water logging - patches with gradient less than drainhead to low tide
     gradient=np.full(np.shape(elevmat),-999)
     gradient[is_land] = (elevmat[is_land] - (msl - 0.5 * tidalrange[is_land] )) / dist2rivmat[is_land]
-    is_waterlogged[(is_land) & (gradient < mindraingrad)] = True
-    
+    is_waterlogged[(is_land) & (gradient < mindraingrad)] = True    
+
     #plot
-    plt.imshow(is_waterlogged)
-    plt.title(year)
+    plt.rcParams["figure.figsize"] = [10, 10]
+    f, (ax1, ax2) = plt.subplots(1,2, sharex=True, sharey=True)
+    f1=ax1.matshow(gradient, vmin=0, vmax=10)
+    ax1.set_title('gradient')
+    plt.colorbar(f1,ax=ax1)
+    f2=ax2.matshow(is_waterlogged)
+    ax2.set_title('waterlogged')
+    plt.colorbar(f2,ax=ax2)
+    f.suptitle(year, fontsize=16, x=0.6)
+    plt.tight_layout()
+    plt.savefig(r'p:\11208012-011-nabaripoma\Model\Python\results\waterlogging\waterlogging_' + str(year), dpi=300)
     plt.show()
 
     #river flow
