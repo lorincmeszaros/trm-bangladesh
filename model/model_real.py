@@ -486,7 +486,7 @@ for year in np.arange(startyear, endyear+1,1):
     #Calculate income, food security and migration with wet and dry season water logging severity as input
     for x in np.arange(0, np.shape(elevmat)[0]):
         for y in np.arange(0, np.shape(elevmat)[1]):
-                socio=hh_agents(waterlogged_sev_dry)
+                socio=hh_agents(waterlogged_sev_wet[x,y])
                 farm_gross_income_rice_small[x,y]=socio.farm_gross_income['rice']['small']
                 
     #plot
@@ -494,8 +494,7 @@ for year in np.arange(startyear, endyear+1,1):
     plt.matshow(farm_gross_income_rice_small)
     plt.title('Gross income for rice in small farms')
     plt.colorbar()
-    plt.show()
-    f.suptitle(year, fontsize=16, x=0.5)
+    plt.suptitle(year, fontsize=16, x=0.5)
     plt.tight_layout()
     plt.savefig(r'p:\11208012-011-nabaripoma\Model\Python\results\real\gross_income\gross_income_rice_' + str(year) + '.png', format='png', bbox_inches='tight', dpi=300)
     plt.show()
