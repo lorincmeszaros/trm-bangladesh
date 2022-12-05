@@ -217,7 +217,7 @@ class hh_agents:
 
 
         #Agent functions
-        
+
         #Farm production
         #Rice
         self.farm_prod_rice = (1-wlog_sev)*self.farmprod_rice #ton/hectare
