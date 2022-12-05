@@ -11,6 +11,8 @@ import math as math
 import pcraster as pcr
 from matplotlib import pyplot as plt 
 import xarray as xr
+import rasterio
+import pandas as pd
 
 model_params = {
     "slr2100": 1, #UserSettableParameter
@@ -18,6 +20,10 @@ model_params = {
     "sedrate": 10, #UserSettableParameter
     "trmsedrate": 40, #UserSettableParameter
 }
+
+#Options
+plot = False
+raster = True
 
 #%%INITIALIZE
 #Model parameters
@@ -27,7 +33,7 @@ sedrate = model_params['sedrate']
 trmsedrate = model_params['trmsedrate']
 mslstart = 0.00
 startyear = 2022
-endyear = 2100
+endyear = 2030
 kslr = 0.02
 mindraingrad = 0.1 / 1000. # 10cm per km minimum drainage gradient
 year = startyear
@@ -36,12 +42,19 @@ msl = 0.00
 #Read grid maps   
 # Read the elevation (topography/bathymetry)
 elev_raster = xr.open_rasterio(r'p:\11208012-011-nabaripoma\Data\elevation.tif')
-elevmat = elev_raster.to_numpy().squeeze()*0.01
+elevmat = elev_raster.to_numpy().squeeze()
+elevmat[elevmat<-52.0] = -52.0
+elevmat[elevmat==0] = -57.0
+elevmat = elevmat + 52.0
 #plot
 plt.matshow(elevmat)
 plt.title('elevation')
 plt.colorbar()
 plt.show()
+
+#Read rater metadata
+with rasterio.open(r'p:\11208012-011-nabaripoma\Data\elevation.tif') as src:
+    ras_meta = src.profile
 
 # read the location of rivers and sea
 rs_raster = xr.open_rasterio(r'p:\11208012-011-nabaripoma\Data\rivers.tif')
@@ -61,6 +74,9 @@ plt.matshow(polmat)
 plt.title('location of polders')
 plt.colorbar()
 plt.show()
+
+#Numebr of polders
+no_polder=np.max(polmat)
 
 # read households per ha (per gridcell)
 hh_raster = xr.open_rasterio(r'p:\11208012-011-nabaripoma\Data\hh_perha.tif')
@@ -154,209 +170,927 @@ class hh_agents:
     """
     Agent to describe the rural households
     
-    outputs:
-        Total Production costs
-        Farm income
-        Total income
-        Migration
-        Food security
+    outputs: 		
+	Total Production costs		Distribution produciton costs per land size category
+	Farm income		            Distribution farm income per land size category
+	Total income		        Distribution total income per land size category
+	Poverty		                % of households per group with income under poverty line
+	Migration		            # migrated people
+	Food security		        % of households per group with food security
+	Total employment		    #permanent jobs
+			                    #seasonal jobs
+
 
     """
 
     def __init__(self, wlog_sev):
         #Agent attributes
-        self.farmsize_small = 0.51
-        self.farmsize_med = 2.02
-        self.farmsize_large = 6.07
-        
-        self.householdsize_small = 4.15
-        self.householdsize_med = 4.15
-        self.householdsize_large = 4.15
-        
-        self.leasedarea_small = 0.1
-        self.leasedarea_med = 0.3
-        self.leasedarea_large = 0.4        
-        
-        #Farm production
-        self.farmprod_rice = 3.74 #ton/hectare 
-        self.farmprod_fish = 1.96
-        self.farmprod_shrimp = 0.33 
-        
-        #Farm employment
-        self.farmempl_totperm_rice = 15.0 # #/hectare
-        self.farmempl_totperm_rice_fish = 25.0
-        self.farmempl_totperm_fish = 25.0
-        self.farmempl_totperm_shrimp = 10.0
-        
-        self.farmempl_hirperm_rice_small = 0.05 # #/hectare
-        self.farmempl_hirperm_rice_med = 1.25
-        self.farmempl_hirperm_rice_large = 2.0
-        self.farmempl_hirperm_fish_small = 0.15 
-        self.farmempl_hirperm_fish_med = 2.0
-        self.farmempl_hirperm_fish_large = 3.0
-        self.farmempl_hirperm_shrimp_small = 0.045 
-        self.farmempl_hirperm_shrimp_med = 1.0
-        self.farmempl_hirperm_shrimp_large = 1.5
-        
-        #Others
-        self.migr_income = 500. #BDT/day
-        self.land_lease = 8090. #BDT/hectare/year
-        self.var_prod_costs = 4357. #BDT/hectare
-        self.human_lab = 6840. #BDT/hectare
-        self.irrigation = 1523.
-        self.rice_cons = 181. #kg/person/year2021
-        self.fish_cons = 23.
-        self.shrimp_cons = 23.
-
-        #Prices
-        self.price_freshw_fish = 130. #Taka/kg 2019 prices
-        self.price_freshw_shrimp = 750. 
-        self.price_saltw_shrimp = 675. 
-        self.price_saltw_fish = 417.5
-        self.price_HYV_Boro = 20.8 
-
-
-        #Agent functions
-
-        #Farm production
-        #Rice
-        self.farm_prod_rice = (1-wlog_sev)*self.farmprod_rice #ton/hectare
-        #Fish
-        if wlog_sev > 0.8:
-            self.farm_prod_fish = (self.farmprod_fish*((1-wlog_sev)+0.6))
-        else:
-            self.farm_prod_fish = self.farmprod_fish
-        #Shrimp
-        if wlog_sev > 0.8:
-            self.farm_prod_shrimp = (self.farmprod_shrimp*((1-wlog_sev)+0.6))
-        else:
-            self.farm_prod_shrimp = self.farmprod_shrimp
-            
-        #Farm production per household category
-        self.farm_prod_rice_small = self.farm_prod_rice * self.farmsize_small
-        self.farm_prod_rice_med = self.farm_prod_rice * self.farmsize_med
-        self.farm_prod_rice_large = self.farm_prod_rice * self.farmsize_large
-        
-        self.farm_prod_fish_small = self.farm_prod_fish * self.farmsize_small
-        self.farm_prod_fish_med = self.farm_prod_fish * self.farmsize_med
-        self.farm_prod_fish_large = self.farm_prod_fish * self.farmsize_large
-        
-        self.farm_prod_shrimp_small = self.farm_prod_shrimp * self.farmsize_small
-        self.farm_prod_shrimp_med = self.farm_prod_shrimp * self.farmsize_med
-        self.farm_prod_shrimp_large = self.farm_prod_shrimp * self.farmsize_large
-
-        #Subsistence consumption
-        self.subs_comp_rice_small = self.householdsize_small * self.rice_cons
-        self.subs_comp_rice_med = self.householdsize_med * self.rice_cons
-        self.subs_comp_rice_large = self.householdsize_med * self.rice_cons
-        
-        self.subs_comp_fish_small = self.householdsize_small * self.fish_cons
-        self.subs_comp_fish_med = self.householdsize_med * self.fish_cons
-        self.subs_comp_fish_large = self.householdsize_large * self.fish_cons
-        
-        self.subs_comp_shrimp_small = self.householdsize_small * self.shrimp_cons
-        self.subs_comp_shrimp_med = self.householdsize_med * self.shrimp_cons
-        self.subs_comp_shrimp_large = self.householdsize_large * self.shrimp_cons
-        
-        #Farm production for market
-        if self.farm_prod_rice_small - (self.subs_comp_rice_small/1000.0) < 0:
-            self.farm_prod_market_rice_small = 0
-        else:
-            self.farm_prod_market_rice_small = self.farm_prod_rice_small - (self.subs_comp_rice_small/1000.0)
-            
-        self.farm_prod_market_rice_med = self.farm_prod_rice_med - (self.subs_comp_rice_med/1000.0)
-        self.farm_prod_market_rice_large = self.farm_prod_rice_large - (self.subs_comp_rice_large/1000.0)
-        
-        self.farm_prod_market_fish_small = self.farm_prod_fish_small - (self.subs_comp_fish_small/1000.0)
-        self.farm_prod_market_fish_med = self.farm_prod_fish_med - (self.subs_comp_fish_med/1000.0)
-        self.farm_prod_market_fish_large = self.farm_prod_fish_large - (self.subs_comp_fish_large/1000.0)
-        
-        self.farm_prod_market_shrimp_small = self.farm_prod_shrimp_small - (self.subs_comp_shrimp_small/1000.0)
-        self.farm_prod_market_shrimp_med = self.farm_prod_shrimp_med - (self.subs_comp_shrimp_med/1000.0)
-        self.farm_prod_market_shrimp_large = self.farm_prod_shrimp_large - (self.subs_comp_shrimp_large/1000.0)     
-        
-        #Farm gross income
-        self.farm_gross_income_rice_small = self.farm_prod_market_rice_small * 1000.0 * self.price_HYV_Boro 
-        self.farm_gross_income_rice_med = self.farm_prod_market_rice_med * 1000.0 * self.price_HYV_Boro 
-        self.farm_gross_income_rice_large = self.farm_prod_market_rice_large * 1000.0 * self.price_HYV_Boro 
-        
-        self.farm_gross_income_fish_small = self.farm_prod_market_fish_small * 1000.0 * self.price_freshw_fish 
-        self.farm_gross_income_fish_med = self.farm_prod_market_fish_med * 1000.0 * self.price_freshw_fish
-        self.farm_gross_income_fish_large = self.farm_prod_market_fish_large * 1000.0 * self.price_freshw_fish
-        
-        self.farm_gross_income_shrimp_small = self.farm_prod_market_shrimp_small * 1000.0 * self.price_saltw_shrimp 
-        self.farm_gross_income_shrimp_med = self.farm_prod_market_shrimp_med * 1000.0 * self.price_saltw_shrimp
-        self.farm_gross_income_shrimp_large = self.farm_prod_market_shrimp_large * 1000.0 * self.price_saltw_shrimp
-        
-        self.farm_gross_income_rice = {
-            "small": self.farm_gross_income_rice_small, 
-            "med": self.farm_gross_income_rice_med, 
-            "large": self.farm_gross_income_rice_large,
-        }       
-
-        self.farm_gross_income_fish = {
-            "small": self.farm_gross_income_fish_small, 
-            "med": self.farm_gross_income_fish_med, 
-            "large": self.farm_gross_income_fish_large,
-        }  
-
-        self.farm_gross_income_shrimp = {
-            "small": self.farm_gross_income_shrimp_small, 
-            "med": self.farm_gross_income_shrimp_med, 
-            "large": self.farm_gross_income_shrimp_large,
-        }  
-        
-        self.farm_gross_income = {
-            "rice": self.farm_gross_income_rice, 
-            "fish": self.farm_gross_income_fish, 
-            "shrimp": self.farm_gross_income_shrimp,
+        self.farmsize = {
+        "small": 0.51,
+        "med": 2.02,
+        "large": 6.07
         }
         
-        #Farm employment (total permanent)
-        self.farm_empl_tot_perm_rice_small = self.farmsize_small * self.farmempl_totperm_rice
-        self.farm_empl_tot_perm_rice_med = self.farmsize_med * self.farmempl_totperm_rice
-        self.farm_empl_tot_perm_rice_large = self.farmsize_large * self.farmempl_totperm_rice
+        self.tot_pop_agr = {
+        "small": 47.0,
+        "med": 8.,
+        "large": 1.,
+        "landless": 44.
+        }
         
-        self.farm_empl_tot_perm_fish_small = self.farmsize_small * self.farmempl_totperm_fish
-        self.farm_empl_tot_perm_fish_med = self.farmsize_med * self.farmempl_totperm_fish
-        self.farm_empl_tot_perm_fish_large = self.farmsize_large * self.farmempl_totperm_fish
+        self.householdsize = {
+        "small": 4.15,
+        "med": 4.15,
+        "large": 4.15
+        }
         
-        self.farm_empl_tot_perm_shrimp_small = self.farmsize_small * self.farmempl_totperm_shrimp
-        self. farm_empl_tot_perm_shrimp_med = self.farmsize_med * self.farmempl_totperm_shrimp
-        self. farm_empl_tot_perm_shrimp_large = self.farmsize_large * self.farmempl_totperm_shrimp
+        self.leasedarea = {
+        "small": 0.1,
+        "med": 0.3,
+        "large": 0.4
+        }
+             
+        self.croppping_pattern = {
+            {
+            "rice": 
+                {
+                "small": 70.,
+                "med": 50.,
+                "large": 30.
+                },
+            "rice-fish":
+                {
+                "small": 20.,
+                "med": 20.,
+                "large": 20.,
+                },
+            "fish":
+                {
+                "small": 10.,
+                "med": 25.,
+                "large": 20.,
+                },
+            "shrimp":
+                {
+                "small": 0.,
+                "med": 5.,
+                "large": 30.
+                }
+            }
+        }
         
-        #Farm employment (hired permanent)
-        self.farm_empl_hir_perm_rice_small = self.farmsize_small * self.farmempl_hirperm_rice_small
-        self.farm_empl_hir_perm_rice_med = self.farmsize_med * self.farmempl_hirperm_rice_med
-        self.farm_empl_hir_perm_rice_large = self.farmsize_large * self.farmempl_hirperm_rice_large
+        #Farm production
+        self.farmprod = {
+        "rice": 3.74,
+        "fish": 1.96,
+        "shrimp": 0.33
+        }
+                
+        #Farm employment
+        self.farmempl = {
+        "family_perm": 
+            {
+            "rice": 
+                {
+                "small": 1.2,
+                "med": 1.8,
+                "large": 2.2
+                },
+            "rice-fish": 
+                {
+                "small": 1.2,
+                "med": 1.8,
+                "large": 2.2
+                },
+            "fish":
+                {
+                "small": 1.2,
+                "med": 1.8,
+                "large": 2.2,
+                },
+            "shrimp":
+                {
+                "small": 1.5,
+                "med": 2.8,
+                "large": 4.9
+                }
+            },
+        "hired_perm": 
+            {
+            "rice": 
+                {
+                "small": 0.1,
+                "med": 0.47,
+                "large": 2.01
+                },
+            "rice-fish": 
+                {
+                "small": 0.12,
+                "med": 0.56,
+                "large": 2.49
+                },
+            "fish":
+                {
+                "small": 0.1,
+                "med": 0.47,
+                "large": 2.01,
+                },
+            "shrimp":
+                {
+                "small": 0.25,
+                "med": 0.97,
+                "large": 2.91
+                }
+            },
+        "hired_temp":
+            {
+            "rice": 
+                {
+                "small": 16.8,
+                "med": 66.1,
+                "large": 198.5
+                },
+            "rice-fish": 
+                {
+                "small": 17.8,
+                "med": 69.9,
+                "large": 210.0
+                },
+            "fish":
+                {
+                "small": 16.8,
+                "med": 66.1,
+                "large": 198.5,
+                },
+            "shrimp":
+                {
+                "small": 20.6,
+                "med": 80.9,
+                "large": 242.8
+                }
+            }
+        }
+    
+        #Temporary employment
+        self.farmprod = {
+        "small": 9.0,
+        "med": 9.0,
+        "large": 9.0
+        }
+            
+        #Migrant income
+        self.migr_income = 500. #BDT/day
         
-        self.farm_empl_hir_perm_fish_small = self.farmsize_small * self.farmempl_hirperm_fish_small
-        self.farm_empl_hir_perm_fish_med = self.farmsize_med * self.farmempl_hirperm_fish_med
-        self.farm_empl_hir_perm_fish_large = self.farmsize_large * self.farmempl_hirperm_fish_large
+        #Land lease
+        self.land_lease = 8090. #BDT/hectare/year
         
-        self.farm_empl_hir_perm_shrimp_small = self.farmsize_small * self.farmempl_hirperm_shrimp_small
-        self. farm_empl_hir_perm_shrimp_med = self.farmsize_med * self.farmempl_hirperm_shrimp_med
-        self.farm_empl_hir_perm_shrimp_large = self.farmsize_large * self.farmempl_hirperm_shrimp_large      
+        #Irrigation % of farms
+        self.irrigation_perc = {
+        "small": 67.0,
+        "med": 74.6,
+        "large": 70.30
+        }
         
-        #Production cost
-        self.rice_irr_small = self.farmsize_small * (self.var_prod_costs + self.human_lab + self.irrigation)
-        self.rice_irr_med = self.farmsize_med * (self.var_prod_costs + self.human_lab + self.irrigation)        
-        self.rice_irr_large = self.farmsize_large * (self.var_prod_costs + self.human_lab + self.irrigation)        
+        #Variable production costs (- irrigation and human labour) (BDT/hectare)   
+        self.var_prod_costs = {  
+        "rice": 
+            {
+            "small": 4357.0,
+            "med": 7388.0,
+            "large": 11971.0
+            },
+        "fish": 37920,
+        "shrimp": 46808
+        }
         
-        self.rice_noirr_small = self.farmsize_small * (self.var_prod_costs + self.human_lab)
-        self.rice_noirr_med = self.farmsize_med * (self.var_prod_costs + self.human_lab)
-        self.rice_noirr_large = self.farmsize_large * (self.var_prod_costs + self.human_lab)
+        #Human labour (BDT/hectare)
+        self.human_lab = {
+        "small": 6840.0,
+        "med": 8196,
+        "large": 12001
+        }
         
-        self.rice_irr_landlease_small = self.farmsize_small * (self.var_prod_costs + self.human_lab + self.irrigation) + (self.leasedarea_small * self.land_lease) 
-        self.rice_irr_landlease_med = self.farmsize_med * (self.var_prod_costs + self.human_lab + self.irrigation) + (self.leasedarea_med * self.land_lease) 
-        self.rice_irr_landlease_large = self.farmsize_large * (self.var_prod_costs + self.human_lab + self.irrigation) + (self.leasedarea_large * self.land_lease) 
+        #Irrigation
+        self.irrigation = {
+        "small": 1523.0,
+        "med": 2105,
+        "large": 2346
+        }
         
-        self.rice_noirr_landlease_small = self.farmsize_small * (self.var_prod_costs + self.human_lab) + (self.leasedarea_small * self.land_lease) 
-        self.rice_noirr_landlease_med = self.farmsize_med * (self.var_prod_costs + self.human_lab) + (self.leasedarea_med * self.land_lease) 
-        self.rice_noirr_landlease_large = self.farmsize_large * (self.var_prod_costs + self.human_lab) + (self.leasedarea_large * self.land_lease)       
+        #Rice consumption (kg/person/year2021)
+        self.consumption = {
+        "rice": 181.,
+        "fish": 23.,
+        "shrimp": 23.
+        }
 
+        #Crop intensity
+        self.cropping_intensity = {
+        "small": 180.0,
+        "med": 166,
+        "large": 155
+        }        
+
+        #Transition costs rice-fish
+        self.cost_trans_rice_fish = 9480.
+        
+        #Migrant income send home
+        self.migr_income_send_home = 15.
+
+        #Poverty line
+        self.poverty_line = 192.
+
+        #Days seasonal employment landless
+        self.days_seas_emp_landless = 54.
+        
+        #People working in landless housseholds
+        self.peop_work_landless = 50.
+
+        #Prices farm gate
+        self.price_farm_gate = {
+        "freshw_fish" : 130., #Taka/kg 2019 prices
+        "freshw_shrimp" : 750. ,
+        "saltw_shrimp" : 675. ,
+        "saltw_fish" : 417.5,
+        "HYV_Boro" : 20.8 
+        }
+        
+        #Selling price
+        self.selling_price = {
+        "rice": 65.0,
+        "fish": 450.0,
+        "shrimp": 1050.
+        }
+
+        #OUTPUTS
+        #Farm production
+        self.farm_prod = {
+        "rice": 0,
+        "fish": 0,
+        "shrimp": 0
+        }
+        
+        #Farm production per household category
+        self.farm_prod_per_hh = {
+            "rice": 
+                {
+                "small": 0,
+                "med": 0,
+                "large": 0
+                },
+            "fish":
+                {
+                "small": 0,
+                "med": 0,
+                "large": 0,
+                },
+            "shrimp":
+                {
+                "small": 0,
+                "med": 0,
+                "large": 0
+                }
+            }
+        
+        #Subsistence food consumption needed
+        self.subs_food_cons = {
+            "rice": 
+                {
+                "small": 0,
+                "med": 0,
+                "large": 0
+                },
+            "fish":
+                {
+                "small": 0,
+                "med": 0,
+                "large": 0,
+                },
+            "shrimp":
+                {
+                "small": 0,
+                "med": 0,
+                "large": 0
+                }
+            }
+        
+        #Farm production for market
+        self.farm_prod_market = {
+            "rice": 
+                {
+                "small": 0,
+                "med": 0,
+                "large": 0
+                },
+            "fish":
+                {
+                "small": 0,
+                "med": 0,
+                "large": 0,
+                },
+            "shrimp":
+                {
+                "small": 0,
+                "med": 0,
+                "large": 0
+                }
+            }
+        
+        #Farm production for food
+        self.farm_prod_food = {
+            "rice": 
+                {
+                "small": 0,
+                "med": 0,
+                "large": 0
+                },
+            "fish":
+                {
+                "small": 0,
+                "med": 0,
+                "large": 0,
+                },
+            "shrimp":
+                {
+                "small": 0,
+                "med": 0,
+                "large": 0
+                }
+            }
+            
+        #Farm gross income
+        self.farm_gross_income = {
+            "rice": 
+                {
+                "small": 0,
+                "med": 0,
+                "large": 0
+                },
+            "fish":
+                {
+                "small": 0,
+                "med": 0,
+                "large": 0,
+                },
+            "shrimp":
+                {
+                "small": 0,
+                "med": 0,
+                "large": 0
+                }
+            }
+            
+        #Production cost
+        self.prod_cost = {
+            "rice_irrig": 
+                {
+                "small": 0,
+                "med": 0,
+                "large": 0
+                },
+            "rice_no_irrig": 
+                {
+                "small": 0,
+                "med": 0,
+                "large": 0
+                },
+            "rice_irrig_landlease": 
+                {
+                "small": 0,
+                "med": 0,
+                "large": 0
+                },
+            "rice_no_irrig_landlease": 
+                {
+                "small": 0,
+                "med": 0,
+                "large": 0
+                },
+            "fish_landlease":
+                {
+                "small": 0,
+                "med": 0,
+                "large": 0,
+                },
+            "fish_no_landlease":
+                {
+                "small": 0,
+                "med": 0,
+                "large": 0,
+                },
+            "shrimp_landlease":
+                {
+                "small": 0,
+                "med": 0,
+                "large": 0,
+                },
+            "shrimp_no_landlease":
+                {
+                "small": 0,
+                "med": 0,
+                "large": 0,
+                }
+            }
+            
+        #Farm net income
+        self.farm_net_income = {
+            "rice_irrig": 
+                {
+                "small": 0,
+                "med": 0,
+                "large": 0
+                },
+            "rice_no_irrig": 
+                {
+                "small": 0,
+                "med": 0,
+                "large": 0
+                },
+            "rice_irrig_landlease": 
+                {
+                "small": 0,
+                "med": 0,
+                "large": 0
+                },
+            "rice_no_irrig_landlease": 
+                {
+                "small": 0,
+                "med": 0,
+                "large": 0
+                },
+            "fish_landlease":
+                {
+                "small": 0,
+                "med": 0,
+                "large": 0,
+                },
+            "fish_no_landlease":
+                {
+                "small": 0,
+                "med": 0,
+                "large": 0,
+                },
+            "shrimp_landlease":
+                {
+                "small": 0,
+                "med": 0,
+                "large": 0,
+                },
+            "shrimp_no_landlease":
+                {
+                "small": 0,
+                "med": 0,
+                "large": 0,
+                },
+            "fish-rice_landlease":
+                {
+                "small": 0,
+                "med": 0,
+                "large": 0,
+                },
+            "fish-rice_no_landlease":
+                {
+                "small": 0,
+                "med": 0,
+                "large": 0,
+                }
+            }
+
+        #Total household income
+        self.tot_hh_income = {
+            "rice_irrig": 
+                {
+                "small": 0,
+                "med": 0,
+                "large": 0
+                },
+            "rice_no_irrig": 
+                {
+                "small": 0,
+                "med": 0,
+                "large": 0
+                },
+            "rice_irrig_landlease": 
+                {
+                "small": 0,
+                "med": 0,
+                "large": 0
+                },
+            "rice_no_irrig_landlease": 
+                {
+                "small": 0,
+                "med": 0,
+                "large": 0
+                },
+            "fish_landlease":
+                {
+                "small": 0,
+                "med": 0,
+                "large": 0,
+                },
+            "fish_no_landlease":
+                {
+                "small": 0,
+                "med": 0,
+                "large": 0,
+                },
+            "shrimp_landlease":
+                {
+                "small": 0,
+                "med": 0,
+                "large": 0,
+                },
+            "shrimp_no_landlease":
+                {
+                "small": 0,
+                "med": 0,
+                "large": 0,
+                },
+            "fish-rice_landlease":
+                {
+                "small": 0,
+                "med": 0,
+                "large": 0,
+                },
+            "fish-rice_no_landlease":
+                {
+                "small": 0,
+                "med": 0,
+                "large": 0,
+                }
+            }    
+
+        #Income above poverty line (corrected for own food consumption)
+        self.income_above_poverty = {
+            "rice_irrig": 
+                {
+                "small": 0,
+                "med": 0,
+                "large": 0
+                },
+            "rice_no_irrig": 
+                {
+                "small": 0,
+                "med": 0,
+                "large": 0
+                },
+            "rice_irrig_landlease": 
+                {
+                "small": 0,
+                "med": 0,
+                "large": 0
+                },
+            "rice_no_irrig_landlease": 
+                {
+                "small": 0,
+                "med": 0,
+                "large": 0
+                },
+            "fish_landlease":
+                {
+                "small": 0,
+                "med": 0,
+                "large": 0,
+                },
+            "fish_no_landlease":
+                {
+                "small": 0,
+                "med": 0,
+                "large": 0,
+                },
+            "shrimp_landlease":
+                {
+                "small": 0,
+                "med": 0,
+                "large": 0,
+                },
+            "shrimp_no_landlease":
+                {
+                "small": 0,
+                "med": 0,
+                "large": 0,
+                },
+            "fish-rice_landlease":
+                {
+                "small": 0,
+                "med": 0,
+                "large": 0,
+                },
+            "fish-rice_no_landlease":
+                {
+                "small": 0,
+                "med": 0,
+                "large": 0,
+                }
+            }          
+            
+        #Food security
+        self.food_security = {
+            "rice_irrig": 
+                {
+                "small": 0,
+                "med": 0,
+                "large": 0
+                },
+            "rice_no_irrig": 
+                {
+                "small": 0,
+                "med": 0,
+                "large": 0
+                },
+            "rice_irrig_landlease": 
+                {
+                "small": 0,
+                "med": 0,
+                "large": 0
+                },
+            "rice_no_irrig_landlease": 
+                {
+                "small": 0,
+                "med": 0,
+                "large": 0
+                },
+            "fish_landlease":
+                {
+                "small": 0,
+                "med": 0,
+                "large": 0,
+                },
+            "fish_no_landlease":
+                {
+                "small": 0,
+                "med": 0,
+                "large": 0,
+                },
+            "shrimp_landlease":
+                {
+                "small": 0,
+                "med": 0,
+                "large": 0,
+                },
+            "shrimp_no_landlease":
+                {
+                "small": 0,
+                "med": 0,
+                "large": 0,
+                },
+            "fish-rice_landlease":
+                {
+                "small": 0,
+                "med": 0,
+                "large": 0,
+                },
+            "fish-rice_no_landlease":
+                {
+                "small": 0,
+                "med": 0,
+                "large": 0,
+                }
+            }   
+         
+        #Required hired permanent farm employment
+        self.req_perm_farm_empl = {
+            "rice": 
+                {
+                "small": 0,
+                "med": 0,
+                "large": 0
+                },
+            "fish":
+                {
+                "small": 0,
+                "med": 0,
+                "large": 0,
+                },
+            "shrimp":
+                {
+                "small": 0,
+                "med": 0,
+                "large": 0
+                }
+            }
+
+        #Required hired seasonal farm employment
+        self.req_seasonal_farm_empl = {
+            "rice": 
+                {
+                "small": 0,
+                "med": 0,
+                "large": 0
+                },
+            "fish":
+                {
+                "small": 0,
+                "med": 0,
+                "large": 0,
+                },
+            "shrimp":
+                {
+                "small": 0,
+                "med": 0,
+                "large": 0
+                }
+            }
+
+        #Landless farmers
+        self.landless_farmer = {
+            "hh_income": 
+                {
+                "perm_empl": 0,
+                "seasonal_empl": 0,
+                },
+            "income_above_poverty":
+                {
+                "perm_empl": 0,
+                "seasonal_empl": 0,
+                },
+            "food_security":
+                {
+                "perm_empl": 0,
+                "seasonal_empl": 0,
+                },
+            "migration_fixed":
+                {
+                "perm_empl": 0,
+                "seasonal_empl": 0,
+                },
+            }
+
+        #Migration - family member
+        self.migration_family = {
+            "rice_irrig": 
+                {
+                "small": 0,
+                "med": 0,
+                "large": 0
+                },
+            "rice_no_irrig": 
+                {
+                "small": 0,
+                "med": 0,
+                "large": 0
+                },
+            "rice_irrig_landlease": 
+                {
+                "small": 0,
+                "med": 0,
+                "large": 0
+                },
+            "rice_no_irrig_landlease": 
+                {
+                "small": 0,
+                "med": 0,
+                "large": 0
+                },
+            "fish_landlease":
+                {
+                "small": 0,
+                "med": 0,
+                "large": 0,
+                },
+            "fish_no_landlease":
+                {
+                "small": 0,
+                "med": 0,
+                "large": 0,
+                },
+            "shrimp_landlease":
+                {
+                "small": 0,
+                "med": 0,
+                "large": 0,
+                },
+            "shrimp_no_landlease":
+                {
+                "small": 0,
+                "med": 0,
+                "large": 0,
+                },
+            "fish-rice_landlease":
+                {
+                "small": 0,
+                "med": 0,
+                "large": 0,
+                },
+            "fish-rice_no_landlease":
+                {
+                "small": 0,
+                "med": 0,
+                "large": 0,
+                }
+            } 
+
+        def agent_functions(self, wlog_sev):
+            '''
+            #Agent functions
+            '''
+            #Farm production
+            #Rice
+            self.farm_prod.rice = (1-wlog_sev)*self.farmprod.rice #ton/hectare
+            #Fish
+            if wlog_sev > 0.8:
+                self.farm_prod.fish = (self.farmprod.fish*((1-wlog_sev)+0.6))
+            else:
+                self.farm_prod.fish = self.farmprod.fish
+            #Shrimp
+            if wlog_sev > 0.8:
+                self.farm_prod.shrimp = (self.farmprod.shrimp*((1-wlog_sev)+0.6))
+            else:
+                self.farm_prod.shrimp = self.farmprod.shrimp
+                
+            #Farm production per household category
+            for hh in ['small', 'med', 'large']:
+                for crop in ['rice', 'fish', 'shrimp']:
+                    self.farm_prod_per_hh[crop][hh] = self.farm_prod[crop] * self.farmsize[hh]
+                
+            #Subsistence consumption
+            for hh in ['small', 'med', 'large']:
+                for crop in ['rice', 'fish', 'shrimp']:
+                    self.subs_food_cons[crop][hh] = self.householdsize[hh] * self.consumption[crop]            
+                        
+            #Farm production for market           
+            for hh in ['small', 'med', 'large']:
+                for crop in ['rice', 'fish', 'shrimp']:
+                    if hh == 'small' and crop == 'rice':
+                        if self.farm_prod_market[crop][hh] - (self.subs_food_cons[crop][hh]/1000.0) < 0:
+                            self.farm_prod_market[crop][hh] = 0
+                    else:
+                        self.farm_prod_market[crop][hh] = self.farm_prod_per_hh[crop][hh] - (self.subs_food_cons[crop][hh]/1000.0)
+  
+            #Farm production for food
+            for hh in ['small', 'med', 'large']:
+                for crop in ['rice', 'fish', 'shrimp', 'fish-rice']:
+                    if crop == 'rice' or crop == 'fish' or crop == 'shrimp':
+                        if self.subs_food_cons[crop][hh]/1000.0 > self.farm_prod_per_hh[crop][hh]:
+                            self.farm_prod_food[crop][hh] = self.farm_prod_per_hh[crop][hh]
+                        else:
+                            self.farm_prod_food[crop][hh] = self.subs_food_cons[crop][hh]/1000.0    
+                    elif crop == 'fish-rice':
+                        if self.farm_prod[crop] * self.farmsize[hh] > self.subs_food_cons[crop][hh]/1000.0  :
+                            self.farm_prod_food[crop][hh] = self.subs_food_cons[crop][hh]
+                        else:
+                            self.farm_prod_food[crop][hh] = self.farm_prod[crop] * self.farmsize[hh]
+                    
+            #Farm gross income
+            for hh in ['small', 'med', 'large']:
+                for crop in ['rice', 'fish', 'shrimp']:
+                    if crop == 'rice':
+                        self.farm_gross_income[crop][hh] = self.farm_prod_market[crop][hh] * 1000.0 * self.price_farm_gate["HYV_Boro"]
+                    elif crop == 'fish': 
+                        self.farm_gross_income[crop][hh] = self.farm_prod_market[crop][hh] * 1000.0 * self.price_farm_gate["freshw_fish"]
+                    elif crop == 'shrimp':
+                        self.farm_gross_income[crop][hh] = self.farm_prod_market[crop][hh] * 1000.0 * self.price_farm_gate["saltw_shrimp"]
+                        
+            #Production cost
+            for hh in ['small', 'med', 'large']:
+                for crop in ["rice_irrig", "rice_no_irrig", "rice_irrig_landlease", "rice_no_irrig_landlease", "fish_landlease", "fish_no_landlease", "shrimp_landlease", "shrimp_no_landlease"]:
+                    if crop == 'rice_irrig':
+                        self.prod_cost[crop][hh] = self.farmsize[hh] * (self.var_prod_costs['rice'][hh] + self.human_lab + self.irrigation)        
+                    elif crop == "rice_no_irrig":
+                        self.prod_cost[crop][hh] = self.farmsize[hh] * (self.var_prod_costs['rice'][hh] + self.human_lab)   
+                    elif crop == "rice_irrig_landlease":
+                        self.prod_cost[crop][hh] = self.farmsize[hh] * (self.var_prod_costs['rice'][hh] + self.human_lab + self.irrigation) + (self.leasedarea[hh] * self.land_lease) 
+                    elif crop == "rice_no_irrig_landlease":
+                        self.prod_cost[crop][hh] = self.farmsize[hh] * (self.var_prod_costs['rice'][hh] + self.human_lab) + (self.leasedarea[hh] * self.land_lease) 
+ 
+
+            
+            #Farm employment (total permanent)
+            self.farm_empl_tot_perm_rice_small = self.farmsize_small * self.farmempl_totperm_rice
+            self.farm_empl_tot_perm_rice_med = self.farmsize_med * self.farmempl_totperm_rice
+            self.farm_empl_tot_perm_rice_large = self.farmsize_large * self.farmempl_totperm_rice
+            
+            self.farm_empl_tot_perm_fish_small = self.farmsize_small * self.farmempl_totperm_fish
+            self.farm_empl_tot_perm_fish_med = self.farmsize_med * self.farmempl_totperm_fish
+            self.farm_empl_tot_perm_fish_large = self.farmsize_large * self.farmempl_totperm_fish
+            
+            self.farm_empl_tot_perm_shrimp_small = self.farmsize_small * self.farmempl_totperm_shrimp
+            self. farm_empl_tot_perm_shrimp_med = self.farmsize_med * self.farmempl_totperm_shrimp
+            self. farm_empl_tot_perm_shrimp_large = self.farmsize_large * self.farmempl_totperm_shrimp
+            
+            #Farm employment (hired permanent)
+            self.farm_empl_hir_perm_rice_small = self.farmsize_small * self.farmempl_hirperm_rice_small
+            self.farm_empl_hir_perm_rice_med = self.farmsize_med * self.farmempl_hirperm_rice_med
+            self.farm_empl_hir_perm_rice_large = self.farmsize_large * self.farmempl_hirperm_rice_large
+            
+            self.farm_empl_hir_perm_fish_small = self.farmsize_small * self.farmempl_hirperm_fish_small
+            self.farm_empl_hir_perm_fish_med = self.farmsize_med * self.farmempl_hirperm_fish_med
+            self.farm_empl_hir_perm_fish_large = self.farmsize_large * self.farmempl_hirperm_fish_large
+            
+            self.farm_empl_hir_perm_shrimp_small = self.farmsize_small * self.farmempl_hirperm_shrimp_small
+            self. farm_empl_hir_perm_shrimp_med = self.farmsize_med * self.farmempl_hirperm_shrimp_med
+            self.farm_empl_hir_perm_shrimp_large = self.farmsize_large * self.farmempl_hirperm_shrimp_large      
+            
 
 #%%RUN CALCULATION (Loop from 2022 to 2100)
+#initialize arrays and lists
+indicators_av=np.zeros((3,(endyear-startyear)+1,1))
+indicators_pol=np.zeros((3,(endyear-startyear)+1,no_polder))
+df = pd.DataFrame(columns=['Year', 'Indicator', 'Polder','Value'])
+
+#loop over timesteps
+i=0
+print('******** Simulation starts ********')
 for year in np.arange(startyear, endyear+1,1):
     """
     Run one iteration of the model. 
@@ -447,31 +1181,50 @@ for year in np.arange(startyear, endyear+1,1):
     is_waterlogged_dry[(is_land) & (gradient_dry < mindraingrad)] = True    
     is_waterlogged_wet[(is_land) & (gradient_wet < mindraingrad)] = True  
     
+    #dry
     waterlogged_sev_dry = 1 - (gradient_dry / mindraingrad)
     waterlogged_sev_dry[waterlogged_sev_dry < 0.] = 0.
     waterlogged_sev_dry[waterlogged_sev_dry > 1.] = 1.
     
+    #wet
     waterlogged_sev_wet = 1 - (gradient_wet / mindraingrad)
     waterlogged_sev_wet[waterlogged_sev_wet < 0.] = 0.
     waterlogged_sev_wet[waterlogged_sev_wet > 1.] = 1.
 
+    #filename
+    filename_waterlogging=r'p:\11208012-011-nabaripoma\Model\Python\results\real\waterlogging\waterlogging_' + str(year) + '.png'
 
-    #plot
-    plt.rcParams["figure.figsize"] = [20, 20]
-    f, (ax1, ax2, ax3) = plt.subplots(1,3, sharex=True, sharey=True)
-    f1=ax1.matshow(elevmat, vmin=-1, vmax = 1)
-    ax1.set_title('elevation')
-    plt.colorbar(f1,ax=ax1)
-    f2=ax2.matshow(waterlogged_sev_dry, vmin=0, vmax = 1)
-    ax2.set_title('waterlogged_sev_dry')
-    plt.colorbar(f2,ax=ax2)
-    f3=ax3.matshow(waterlogged_sev_wet, vmin=0, vmax = 1)
-    ax3.set_title('waterlogged_sev_wet')
-    plt.colorbar(f3,ax=ax3)
-    f.suptitle(year, fontsize=16, x=0.5)
-    plt.tight_layout()
-    plt.savefig(r'p:\11208012-011-nabaripoma\Model\Python\results\real\waterlogging\waterlogging_' + str(year) + '.png', format='png', bbox_inches='tight', dpi=300)
-    plt.show()
+    if plot:
+        #plot
+        plt.rcParams["figure.figsize"] = [20, 20]
+        f, (ax1, ax2, ax3) = plt.subplots(1,3, sharex=True, sharey=True)
+        f1=ax1.matshow(elevmat, vmin=-1, vmax = 1)
+        ax1.set_title('elevation')
+        plt.colorbar(f1,ax=ax1)
+        f2=ax2.matshow(waterlogged_sev_dry, vmin=0, vmax = 1)
+        ax2.set_title('waterlogged_sev_dry')
+        plt.colorbar(f2,ax=ax2)
+        f3=ax3.matshow(waterlogged_sev_wet, vmin=0, vmax = 1)
+        ax3.set_title('waterlogged_sev_wet')
+        plt.colorbar(f3,ax=ax3)
+        f.suptitle(year, fontsize=16, x=0.5)
+        plt.tight_layout()
+        plt.savefig(filename_waterlogging, format='png', bbox_inches='tight', dpi=300)
+        plt.show()
+        plt.close()
+    
+    if raster:
+        if year == startyear or year == endyear:            
+            #Write raster file (waterlogging)
+            with rasterio.open(r'p:\11208012-011-nabaripoma\Model\Python\results\real\waterlogging\geotif\waterlogging_dry_' + str(year) + '.tif', 'w', **ras_meta) as dst:
+                dst.write(waterlogged_sev_dry, indexes=1) #Dry
+                
+            with rasterio.open(r'p:\11208012-011-nabaripoma\Model\Python\results\real\waterlogging\geotif\waterlogging_wet_' + str(year) + '.tif', 'w', **ras_meta) as dst:
+                dst.write(waterlogged_sev_wet, indexes=1) #Wet   
+            
+            #Write raster file (elevation)   
+            with rasterio.open(r'p:\11208012-011-nabaripoma\Model\Python\results\real\elevation\geotif\elevation_' + str(year) + '.tif', 'w', **ras_meta) as dst:
+                dst.write(elevmat, indexes=1) #elevation
 
     #river flow
     
@@ -487,14 +1240,35 @@ for year in np.arange(startyear, endyear+1,1):
     for x in np.arange(0, np.shape(elevmat)[0]):
         for y in np.arange(0, np.shape(elevmat)[1]):
                 socio=hh_agents(waterlogged_sev_wet[x,y])
-                farm_gross_income_rice_small[x,y]=socio.farm_gross_income['rice']['small']
-                
-    #plot
-    plt.rcParams["figure.figsize"] = [20, 20]
-    plt.matshow(farm_gross_income_rice_small)
-    plt.title('Gross income for rice in small farms')
-    plt.colorbar()
-    plt.suptitle(year, fontsize=16, x=0.5)
-    plt.tight_layout()
-    plt.savefig(r'p:\11208012-011-nabaripoma\Model\Python\results\real\gross_income\gross_income_rice_' + str(year) + '.png', format='png', bbox_inches='tight', dpi=300)
-    plt.show()
+                farm_gross_income_rice_small[x,y]=socio.farm_gross_income['rice']['small'] #ind_id=0
+    #update dataframe
+    df = pd.concat([df.copy(),pd.DataFrame([{'Year':year, 'Indicator':'gross_income_rice_small', 'Polder':0, 'Value':np.mean(farm_gross_income_rice_small[polmat!=0])}])])
+    for p in np.arange(1, no_polder+1):
+        df = pd.concat([df.copy(),pd.DataFrame([{'Year':year, 'Indicator':'gross_income_rice_small', 'Polder':p, 'Value':np.mean(farm_gross_income_rice_small[polmat==p])}])])
+
+    #filename
+    filename_gross_income=r'p:\11208012-011-nabaripoma\Model\Python\results\real\gross_income\gross_income_rice_' + str(year) + '.png'
+        
+    if plot:
+        #plot
+        plt.rcParams["figure.figsize"] = [20, 20]
+        plt.matshow(farm_gross_income_rice_small)
+        plt.title('Gross income for rice in small farms')
+        plt.colorbar()
+        plt.suptitle(year, fontsize=16, x=0.5)
+        plt.tight_layout()
+        plt.savefig(filename_gross_income, format='png', bbox_inches='tight', dpi=300)
+        plt.show()
+        plt.close()
+    
+    if raster:
+        if year == startyear or year == endyear: 
+            #Write raster file (socio-econnomics)
+            with rasterio.open(r'p:\11208012-011-nabaripoma\Model\Python\results\real\gross_income\geotif\gross_income_rice_' + str(year) + '.tif', 'w', **ras_meta) as dst:
+                dst.write(farm_gross_income_rice_small, indexes=1) #gross income  
+           
+    #update loop
+    i=i+1
+
+#Save .csv
+df.to_csv(r'p:\11208012-011-nabaripoma\Model\Python\results\real\csv\model_output.csv', index=False, float_format='%.2f')
