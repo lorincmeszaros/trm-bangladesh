@@ -238,6 +238,20 @@ class hh_agents:
                 }
             }
         }
+
+            #Household income additional activities
+        self.hh_income_additional = {
+        "small": 95053.0,
+        "med": 95053.0,
+        "large": 95053.0
+        }        
+
+        #Migrated household members (initial set-up)            
+        self.migrated_hh_members = {
+        "small": 0.3,
+        "med": 0.3,
+        "large": 0.3
+        }   
         
         #Farm production
         self.farmprod = {
@@ -1052,34 +1066,56 @@ class hh_agents:
                         self.prod_cost[crop][hh] = self.farmsize[hh] * (self.var_prod_costs['rice'][hh] + self.human_lab + self.irrigation) + (self.leasedarea[hh] * self.land_lease) 
                     elif crop == "rice_no_irrig_landlease":
                         self.prod_cost[crop][hh] = self.farmsize[hh] * (self.var_prod_costs['rice'][hh] + self.human_lab) + (self.leasedarea[hh] * self.land_lease) 
+                    elif crop == "fish_landlease":
+                        self.prod_cost[crop][hh] = (self.farmsize[hh] * self.var_prod_costs['fish'][hh]) + (self.farmsize[hh] * self.land_lease) 
+                    elif crop == "fish_no_landlease":
+                        self.prod_cost[crop][hh] = (self.farmsize[hh] * self.var_prod_costs['fish'][hh])
+                    elif crop == "shrimp_landlease":
+                        self.prod_cost[crop][hh] = (self.farmsize[hh] * self.var_prod_costs['shrimp'][hh]) + (self.farmsize[hh] * self.land_lease) 
+                    elif crop == "shrimp_no_landlease":
+                        self.prod_cost[crop][hh] = (self.farmsize[hh] * self.var_prod_costs['shrimp'][hh])                        
  
+            #Farm net income
+            for hh in ['small', 'med', 'large']:
+                for crop in ["rice_irrig", "rice_no_irrig", "rice_irrig_landlease", "rice_no_irrig_landlease", "fish_landlease", "fish_no_landlease", "shrimp_landlease", "shrimp_no_landlease", "fish-rice_landlease", "fish-rice_no_landlease"]:            
+                        if crop == "fish-rice_landlease":
+                            self.farm_net_income[crop][hh] = (self.farm_net_income["rice_no_irrig_landlease"][hh] + self.farm_net_income["fish_landlease"][hh])/2.0 - (self.cost_trans_rice_fish * self.land_lease) 
+                        elif crop == "fish-rice_no_landlease":
+                            self.farm_net_income[crop][hh] = (self.farm_net_income["rice_no_irrig"][hh] + self.farm_net_income["fish_no_landlease"][hh])/2.0 - (self.cost_trans_rice_fish * self.land_lease) 
+                        else:
+                            self.farm_net_income[crop][hh] = self.farm_gross_income[crop][hh] - self.prod_cost[crop][hh]
+                            
+            #Total household income
+            for hh in ['small', 'med', 'large']:
+                for crop in ["rice_irrig", "rice_no_irrig", "rice_irrig_landlease", "rice_no_irrig_landlease", "fish_landlease", "fish_no_landlease", "shrimp_landlease", "shrimp_no_landlease", "fish-rice_landlease", "fish-rice_no_landlease"]:            
+                   self.tot_hh_income[crop][hh] = self.farm_net_income[crop][hh] + self.hh_income_additional[hh] + (self.migrated_hh_members[hh] * 50 * 6 * self.migr_income * self.migr_income_send_home)
 
-            
-            #Farm employment (total permanent)
-            self.farm_empl_tot_perm_rice_small = self.farmsize_small * self.farmempl_totperm_rice
-            self.farm_empl_tot_perm_rice_med = self.farmsize_med * self.farmempl_totperm_rice
-            self.farm_empl_tot_perm_rice_large = self.farmsize_large * self.farmempl_totperm_rice
-            
-            self.farm_empl_tot_perm_fish_small = self.farmsize_small * self.farmempl_totperm_fish
-            self.farm_empl_tot_perm_fish_med = self.farmsize_med * self.farmempl_totperm_fish
-            self.farm_empl_tot_perm_fish_large = self.farmsize_large * self.farmempl_totperm_fish
-            
-            self.farm_empl_tot_perm_shrimp_small = self.farmsize_small * self.farmempl_totperm_shrimp
-            self. farm_empl_tot_perm_shrimp_med = self.farmsize_med * self.farmempl_totperm_shrimp
-            self. farm_empl_tot_perm_shrimp_large = self.farmsize_large * self.farmempl_totperm_shrimp
-            
-            #Farm employment (hired permanent)
-            self.farm_empl_hir_perm_rice_small = self.farmsize_small * self.farmempl_hirperm_rice_small
-            self.farm_empl_hir_perm_rice_med = self.farmsize_med * self.farmempl_hirperm_rice_med
-            self.farm_empl_hir_perm_rice_large = self.farmsize_large * self.farmempl_hirperm_rice_large
-            
-            self.farm_empl_hir_perm_fish_small = self.farmsize_small * self.farmempl_hirperm_fish_small
-            self.farm_empl_hir_perm_fish_med = self.farmsize_med * self.farmempl_hirperm_fish_med
-            self.farm_empl_hir_perm_fish_large = self.farmsize_large * self.farmempl_hirperm_fish_large
-            
-            self.farm_empl_hir_perm_shrimp_small = self.farmsize_small * self.farmempl_hirperm_shrimp_small
-            self. farm_empl_hir_perm_shrimp_med = self.farmsize_med * self.farmempl_hirperm_shrimp_med
-            self.farm_empl_hir_perm_shrimp_large = self.farmsize_large * self.farmempl_hirperm_shrimp_large      
+            #Income above poverty line (corrected for own food consumption)
+            for hh in ['small', 'med', 'large']:
+                for crop in ["rice_irrig", "rice_no_irrig", "rice_irrig_landlease", "rice_no_irrig_landlease", "fish_landlease", "fish_no_landlease", "shrimp_landlease", "shrimp_no_landlease", "fish-rice_landlease", "fish-rice_no_landlease"]:             
+                    if crop == "fish-rice_landlease" or crop == "fish-rice_no_landlease":
+                        self.income_above_poverty[crop][hh] = self.tot_hh_income[crop][hh] > ((self.poverty_line * 365 * self.householdsize[hh]) - ((self.farm_prod_food['fish'][hh] * 1000 * self.selling_price['rice']) + (self.farm_prod_food['rice'][hh] * 1000 * self.selling_price['rice']))/2.0 )
+                    else:
+                        self.income_above_poverty[crop][hh] = self.tot_hh_income[crop][hh] > ((self.poverty_line * 365 * self.householdsize[hh]) - (self.farm_prod_food[crop][hh] * 1000 * self.selling_price[crop]))
+
+            #Food security
+            for hh in ['small', 'med', 'large']:
+                for crop in ["rice_irrig", "rice_no_irrig", "rice_irrig_landlease", "rice_no_irrig_landlease", "fish_landlease", "fish_no_landlease", "shrimp_landlease", "shrimp_no_landlease", "fish-rice_landlease", "fish-rice_no_landlease"]:             
+                    if crop == "rice_irrig" or crop == "rice_no_irrig" or crop == "rice_irrig_landlease" or crop == "rice_no_irrig_landlease":
+                        if (self.farm_prod_food['rice'][hh] < self.subs_food_cons['rice'][hh] / 1000.0) and (self.income_above_poverty[crop][hh] == False):
+                            self.food_security[crop][hh] = False
+                        else:
+                            self.food_security[crop][hh] = True
+                    elif crop == "fish_landlease" or crop == "fish_no_landlease" or crop == "shrimp_landlease" or crop == "shrimp_no_landlease":     
+                        if self.income_above_poverty[crop][hh] == False:
+                            self.food_security[crop][hh] = False
+                        else:
+                            self.food_security[crop][hh] = True   
+                    else:
+                        if (self.farm_prod_food['fish-rice'][hh] < self.subs_food_cons['rice'][hh] / 1000.0) and (self.income_above_poverty[crop][hh] == False):
+                            self.food_security[crop][hh] = False
+                        else:
+                            self.food_security[crop][hh] = True
             
 
 #%%RUN CALCULATION (Loop from 2022 to 2100)
