@@ -1,0 +1,962 @@
+# -*- coding: utf-8 -*-
+"""
+Created on Wed Dec  7 10:19:01 2022
+
+@author: lorinc
+"""
+#%%Agents = rural households
+#Create a list of households with attributes 
+
+def agent_functions(wlog_sev):
+
+    """
+    Agent to describe the rural households
+    
+    outputs: 		
+	Total Production costs		Distribution produciton costs per land size category
+	Farm income		            Distribution farm income per land size category
+	Total income		        Distribution total income per land size category
+	Poverty		                % of households per group with income under poverty line
+	Migration		            # migrated people
+	Food security		        % of households per group with food security
+	Total employment		    #permanent jobs
+			                    #seasonal jobs
+    """            
+
+    #INIT
+    #Agent attributes
+    farmsize = {
+    "small": 0.51,
+    "med": 2.02,
+    "large": 6.07
+    }
+    
+    tot_pop_agr = {
+    "small": 47.0/100.,
+    "med": 8./100.,
+    "large": 1./100.,
+    "landless": 44./100.
+    }
+    
+    householdsize = {
+    "small": 4.15,
+    "med": 4.15,
+    "large": 4.15
+    }
+    
+    leasedarea = {
+    "small": 0.1,
+    "med": 0.3,
+    "large": 0.4
+    }
+         
+    croppping_pattern = {
+        "rice": 
+            {
+            "small": 70./100.,
+            "med": 50./100.,
+            "large": 30./100.
+            },
+        "rice-fish":
+            {
+            "small": 20./100.,
+            "med": 20./100.,
+            "large": 20./100.,
+            },
+        "fish":
+            {
+            "small": 10./100.,
+            "med": 25./100.,
+            "large": 20./100.,
+            },
+        "shrimp":
+            {
+            "small": 0./100.,
+            "med": 5./100.,
+            "large": 30./100.
+            }
+    }
+
+    #Household income additional activities
+    hh_income_additional = {
+    "small": 95053.0,
+    "med": 95053.0,
+    "large": 95053.0
+    }        
+
+    #Migrated household members (initial set-up)            
+    migrated_hh_members = {
+    "small": 0.3,
+    "med": 0.3,
+    "large": 0.3
+    }   
+    
+    #Farm production
+    farmprod = {
+    "rice": 3.74,
+    "fish": 1.96,
+    "shrimp": 0.33
+    }
+            
+    #Farm employment
+    farmempl = {
+    "family_perm": 
+        {
+        "rice": 
+            {
+            "small": 1.2,
+            "med": 1.8,
+            "large": 2.2
+            },
+        "rice-fish": 
+            {
+            "small": 1.2,
+            "med": 1.8,
+            "large": 2.2
+            },
+        "fish":
+            {
+            "small": 1.2,
+            "med": 1.8,
+            "large": 2.2,
+            },
+        "shrimp":
+            {
+            "small": 1.5,
+            "med": 2.8,
+            "large": 4.9
+            }
+        },
+    "hired_perm": 
+        {
+        "rice": 
+            {
+            "small": 0.1,
+            "med": 0.47,
+            "large": 2.01
+            },
+        "rice-fish": 
+            {
+            "small": 0.12,
+            "med": 0.56,
+            "large": 2.49
+            },
+        "fish":
+            {
+            "small": 0.1,
+            "med": 0.47,
+            "large": 2.01,
+            },
+        "shrimp":
+            {
+            "small": 0.25,
+            "med": 0.97,
+            "large": 2.91
+            }
+        },
+    "hired_temp":
+        {
+        "rice": 
+            {
+            "small": 16.8,
+            "med": 66.1,
+            "large": 198.5
+            },
+        "rice-fish": 
+            {
+            "small": 17.8,
+            "med": 69.9,
+            "large": 210.0
+            },
+        "fish":
+            {
+            "small": 16.8,
+            "med": 66.1,
+            "large": 198.5,
+            },
+        "shrimp":
+            {
+            "small": 20.6,
+            "med": 80.9,
+            "large": 242.8
+            }
+        }
+    }
+
+    #Temporary employment
+    temp_empl = {
+    "small": 9.0,
+    "med": 9.0,
+    "large": 9.0
+    }
+        
+    #Migrant income
+    migr_income = 500. #BDT/day
+    
+    #Land lease
+    land_lease = 8090. #BDT/hectare/year
+    
+    #Irrigation % of farms
+    irrigation_perc = {
+    "small": 67.0/100.,
+    "med": 74.6/100.,
+    "large": 70.30/100.
+    }
+    
+    #Variable production costs (- irrigation and human labour) (BDT/hectare)   
+    var_prod_costs = {  
+    "rice": 
+        {
+        "small": 4357.0,
+        "med": 7388.0,
+        "large": 11971.0
+        },
+    "fish": 37920,
+    "shrimp": 46808
+    }
+    
+    #Human labour (BDT/hectare)
+    human_lab = {
+    "small": 6840.0,
+    "med": 8196,
+    "large": 12001
+    }
+    
+    #Irrigation
+    irrigation = {
+    "small": 1523.0,
+    "med": 2105,
+    "large": 2346
+    }
+    
+    #Rice consumption (kg/person/year2021)
+    consumption = {
+    "rice": 181.,
+    "fish": 23.,
+    "shrimp": 23.
+    }
+
+    #Crop intensity
+    cropping_intensity = {
+    "small": 180.0/100.,
+    "med": 166/100.,
+    "large": 155/100.
+    }        
+
+    #Transition costs rice-fish
+    cost_trans_rice_fish = 9480.
+    
+    #Migrant income send home
+    migr_income_send_home = 15./100.
+
+    #Poverty line
+    poverty_line = 192.
+
+    #Days seasonal employment landless
+    days_seas_emp_landless = 54.
+    
+    #People working in landless housseholds
+    peop_work_landless = 50./100.
+
+    #Prices farm gate
+    price_farm_gate = {
+    "freshw_fish" : 130., #Taka/kg 2019 prices
+    "freshw_shrimp" : 750. ,
+    "saltw_shrimp" : 675. ,
+    "saltw_fish" : 417.5,
+    "HYV_Boro" : 20.8 
+    }
+    
+    #Selling price
+    selling_price = {
+    "rice": 65.0,
+    "fish": 450.0,
+    "shrimp": 1050.
+    }
+
+    #OUTPUTS
+    #Farm production
+    farm_prod = {
+    "rice": 0,
+    "fish": 0,
+    "shrimp": 0
+    }
+    
+    #Farm production per household category
+    farm_prod_per_hh = {
+        "rice": 
+            {
+            "small": 0,
+            "med": 0,
+            "large": 0
+            },
+        "fish":
+            {
+            "small": 0,
+            "med": 0,
+            "large": 0,
+            },
+        "shrimp":
+            {
+            "small": 0,
+            "med": 0,
+            "large": 0
+            }
+        }
+    
+    #Subsistence food consumption needed
+    subs_food_cons = {
+        "rice": 
+            {
+            "small": 0,
+            "med": 0,
+            "large": 0
+            },
+        "fish":
+            {
+            "small": 0,
+            "med": 0,
+            "large": 0,
+            },
+        "shrimp":
+            {
+            "small": 0,
+            "med": 0,
+            "large": 0
+            }
+        }
+    
+    #Farm production for market
+    farm_prod_market = {
+        "rice": 
+            {
+            "small": 0,
+            "med": 0,
+            "large": 0
+            },
+        "fish":
+            {
+            "small": 0,
+            "med": 0,
+            "large": 0,
+            },
+        "shrimp":
+            {
+            "small": 0,
+            "med": 0,
+            "large": 0
+            }
+        }
+    
+    #Farm production for food
+    farm_prod_food = {
+        "rice": 
+            {
+            "small": 0,
+            "med": 0,
+            "large": 0
+            },
+        "fish":
+            {
+            "small": 0,
+            "med": 0,
+            "large": 0,
+            },
+        "shrimp":
+            {
+            "small": 0,
+            "med": 0,
+            "large": 0
+            },
+        "fish-rice":
+            {
+            "small": 0,
+            "med": 0,
+            "large": 0
+            }
+        }
+        
+    #Farm gross income
+    farm_gross_income = {
+        "rice": 
+            {
+            "small": 0,
+            "med": 0,
+            "large": 0
+            },
+        "fish":
+            {
+            "small": 0,
+            "med": 0,
+            "large": 0,
+            },
+        "shrimp":
+            {
+            "small": 0,
+            "med": 0,
+            "large": 0
+            }
+        }
+        
+    #Production cost
+    prod_cost = {
+        "rice_irrig": 
+            {
+            "small": 0,
+            "med": 0,
+            "large": 0
+            },
+        "rice_no_irrig": 
+            {
+            "small": 0,
+            "med": 0,
+            "large": 0
+            },
+        "rice_irrig_landlease": 
+            {
+            "small": 0,
+            "med": 0,
+            "large": 0
+            },
+        "rice_no_irrig_landlease": 
+            {
+            "small": 0,
+            "med": 0,
+            "large": 0
+            },
+        "fish_landlease":
+            {
+            "small": 0,
+            "med": 0,
+            "large": 0,
+            },
+        "fish_no_landlease":
+            {
+            "small": 0,
+            "med": 0,
+            "large": 0,
+            },
+        "shrimp_landlease":
+            {
+            "small": 0,
+            "med": 0,
+            "large": 0,
+            },
+        "shrimp_no_landlease":
+            {
+            "small": 0,
+            "med": 0,
+            "large": 0,
+            }
+        }
+        
+    #Farm net income
+    farm_net_income = {
+        "rice_irrig": 
+            {
+            "small": 0,
+            "med": 0,
+            "large": 0
+            },
+        "rice_no_irrig": 
+            {
+            "small": 0,
+            "med": 0,
+            "large": 0
+            },
+        "rice_irrig_landlease": 
+            {
+            "small": 0,
+            "med": 0,
+            "large": 0
+            },
+        "rice_no_irrig_landlease": 
+            {
+            "small": 0,
+            "med": 0,
+            "large": 0
+            },
+        "fish_landlease":
+            {
+            "small": 0,
+            "med": 0,
+            "large": 0,
+            },
+        "fish_no_landlease":
+            {
+            "small": 0,
+            "med": 0,
+            "large": 0,
+            },
+        "shrimp_landlease":
+            {
+            "small": 0,
+            "med": 0,
+            "large": 0,
+            },
+        "shrimp_no_landlease":
+            {
+            "small": 0,
+            "med": 0,
+            "large": 0,
+            },
+        "fish-rice_landlease":
+            {
+            "small": 0,
+            "med": 0,
+            "large": 0,
+            },
+        "fish-rice_no_landlease":
+            {
+            "small": 0,
+            "med": 0,
+            "large": 0,
+            }
+        }
+
+    #Total household income
+    tot_hh_income = {
+        "rice_irrig": 
+            {
+            "small": 0,
+            "med": 0,
+            "large": 0
+            },
+        "rice_no_irrig": 
+            {
+            "small": 0,
+            "med": 0,
+            "large": 0
+            },
+        "rice_irrig_landlease": 
+            {
+            "small": 0,
+            "med": 0,
+            "large": 0
+            },
+        "rice_no_irrig_landlease": 
+            {
+            "small": 0,
+            "med": 0,
+            "large": 0
+            },
+        "fish_landlease":
+            {
+            "small": 0,
+            "med": 0,
+            "large": 0,
+            },
+        "fish_no_landlease":
+            {
+            "small": 0,
+            "med": 0,
+            "large": 0,
+            },
+        "shrimp_landlease":
+            {
+            "small": 0,
+            "med": 0,
+            "large": 0,
+            },
+        "shrimp_no_landlease":
+            {
+            "small": 0,
+            "med": 0,
+            "large": 0,
+            },
+        "fish-rice_landlease":
+            {
+            "small": 0,
+            "med": 0,
+            "large": 0,
+            },
+        "fish-rice_no_landlease":
+            {
+            "small": 0,
+            "med": 0,
+            "large": 0,
+            }
+        }    
+
+    #Income above poverty line (corrected for own food consumption)
+    income_above_poverty = {
+        "rice_irrig": 
+            {
+            "small": 0,
+            "med": 0,
+            "large": 0
+            },
+        "rice_no_irrig": 
+            {
+            "small": 0,
+            "med": 0,
+            "large": 0
+            },
+        "rice_irrig_landlease": 
+            {
+            "small": 0,
+            "med": 0,
+            "large": 0
+            },
+        "rice_no_irrig_landlease": 
+            {
+            "small": 0,
+            "med": 0,
+            "large": 0
+            },
+        "fish_landlease":
+            {
+            "small": 0,
+            "med": 0,
+            "large": 0,
+            },
+        "fish_no_landlease":
+            {
+            "small": 0,
+            "med": 0,
+            "large": 0,
+            },
+        "shrimp_landlease":
+            {
+            "small": 0,
+            "med": 0,
+            "large": 0,
+            },
+        "shrimp_no_landlease":
+            {
+            "small": 0,
+            "med": 0,
+            "large": 0,
+            },
+        "fish-rice_landlease":
+            {
+            "small": 0,
+            "med": 0,
+            "large": 0,
+            },
+        "fish-rice_no_landlease":
+            {
+            "small": 0,
+            "med": 0,
+            "large": 0,
+            }
+        }          
+        
+    #Food security
+    food_security = {
+        "rice_irrig": 
+            {
+            "small": 0,
+            "med": 0,
+            "large": 0
+            },
+        "rice_no_irrig": 
+            {
+            "small": 0,
+            "med": 0,
+            "large": 0
+            },
+        "rice_irrig_landlease": 
+            {
+            "small": 0,
+            "med": 0,
+            "large": 0
+            },
+        "rice_no_irrig_landlease": 
+            {
+            "small": 0,
+            "med": 0,
+            "large": 0
+            },
+        "fish_landlease":
+            {
+            "small": 0,
+            "med": 0,
+            "large": 0,
+            },
+        "fish_no_landlease":
+            {
+            "small": 0,
+            "med": 0,
+            "large": 0,
+            },
+        "shrimp_landlease":
+            {
+            "small": 0,
+            "med": 0,
+            "large": 0,
+            },
+        "shrimp_no_landlease":
+            {
+            "small": 0,
+            "med": 0,
+            "large": 0,
+            },
+        "fish-rice_landlease":
+            {
+            "small": 0,
+            "med": 0,
+            "large": 0,
+            },
+        "fish-rice_no_landlease":
+            {
+            "small": 0,
+            "med": 0,
+            "large": 0,
+            }
+        }   
+     
+    #Required hired permanent farm employment
+    req_perm_farm_empl = {
+        "rice": 
+            {
+            "small": 0,
+            "med": 0,
+            "large": 0
+            },
+        "fish":
+            {
+            "small": 0,
+            "med": 0,
+            "large": 0,
+            },
+        "shrimp":
+            {
+            "small": 0,
+            "med": 0,
+            "large": 0
+            }
+        }
+
+    #Required hired seasonal farm employment
+    req_seasonal_farm_empl = {
+        "rice": 
+            {
+            "small": 0,
+            "med": 0,
+            "large": 0
+            },
+        "fish":
+            {
+            "small": 0,
+            "med": 0,
+            "large": 0,
+            },
+        "shrimp":
+            {
+            "small": 0,
+            "med": 0,
+            "large": 0
+            }
+        }
+
+    #Landless farmers
+    landless_farmer = {
+        "hh_income": 
+            {
+            "perm_empl": 0,
+            "seasonal_empl": 0,
+            },
+        "income_above_poverty":
+            {
+            "perm_empl": 0,
+            "seasonal_empl": 0,
+            },
+        "food_security":
+            {
+            "perm_empl": 0,
+            "seasonal_empl": 0,
+            },
+        "migration_fixed":
+            {
+            "perm_empl": 0,
+            "seasonal_empl": 0,
+            },
+        }
+
+    #Migration - family member
+    migration_family = {
+        "rice_irrig": 
+            {
+            "small": 0,
+            "med": 0,
+            "large": 0
+            },
+        "rice_no_irrig": 
+            {
+            "small": 0,
+            "med": 0,
+            "large": 0
+            },
+        "rice_irrig_landlease": 
+            {
+            "small": 0,
+            "med": 0,
+            "large": 0
+            },
+        "rice_no_irrig_landlease": 
+            {
+            "small": 0,
+            "med": 0,
+            "large": 0
+            },
+        "fish_landlease":
+            {
+            "small": 0,
+            "med": 0,
+            "large": 0,
+            },
+        "fish_no_landlease":
+            {
+            "small": 0,
+            "med": 0,
+            "large": 0,
+            },
+        "shrimp_landlease":
+            {
+            "small": 0,
+            "med": 0,
+            "large": 0,
+            },
+        "shrimp_no_landlease":
+            {
+            "small": 0,
+            "med": 0,
+            "large": 0,
+            },
+        "fish-rice_landlease":
+            {
+            "small": 0,
+            "med": 0,
+            "large": 0,
+            },
+        "fish-rice_no_landlease":
+            {
+            "small": 0,
+            "med": 0,
+            "large": 0,
+            }
+        } 
+    
+    
+    #FUNCTIONS
+    #Farm production
+    #Rice
+    farm_prod['rice'] = (1-wlog_sev)*farmprod['rice'] #ton/hectare
+    #Fish
+    if wlog_sev > 0.8:
+        farm_prod['fish'] = (farmprod['fish']*((1-wlog_sev)+0.6))
+    else:
+        farm_prod['fish'] = farmprod['fish']
+    #Shrimp
+    if wlog_sev > 0.8:
+        farm_prod['shrimp'] = (farmprod['shrimp']*((1-wlog_sev)+0.6))
+    else:
+        farm_prod['shrimp'] = farmprod['shrimp']
+        
+    #Farm production per household category
+    for hh in ['small', 'med', 'large']:
+        for crop in ['rice', 'fish', 'shrimp']:
+            farm_prod_per_hh[crop][hh] = farm_prod[crop] * farmsize[hh]
+        
+    #Subsistence consumption
+    for hh in ['small', 'med', 'large']:
+        for crop in ['rice', 'fish', 'shrimp']:
+            subs_food_cons[crop][hh] = householdsize[hh] * consumption[crop]            
+                
+    #Farm production for market           
+    for hh in ['small', 'med', 'large']:
+        for crop in ['rice', 'fish', 'shrimp']:
+            if hh == 'small' and crop == 'rice':
+                if farm_prod_market[crop][hh] - (subs_food_cons[crop][hh]/1000.0) < 0:
+                    farm_prod_market[crop][hh] = 0
+            else:
+                farm_prod_market[crop][hh] = farm_prod_per_hh[crop][hh] - (subs_food_cons[crop][hh]/1000.0)
+  
+    #Farm production for food
+    for hh in ['small', 'med', 'large']:
+        for crop in ['rice', 'fish', 'shrimp', 'fish-rice']:
+            if crop == 'rice' or crop == 'fish' or crop == 'shrimp':
+                if subs_food_cons[crop][hh]/1000.0 > farm_prod_per_hh[crop][hh]:
+                    farm_prod_food[crop][hh] = farm_prod_per_hh[crop][hh]
+                else:
+                    farm_prod_food[crop][hh] = subs_food_cons[crop][hh]/1000.0    
+            elif crop == 'fish-rice':
+                if farm_prod['rice'] * farmsize[hh] > subs_food_cons['rice'][hh]/1000.0  :
+                    farm_prod_food[crop][hh] = subs_food_cons['rice'][hh]
+                else:
+                    farm_prod_food[crop][hh] = farm_prod['rice'] * farmsize[hh]
+            
+    #Farm gross income
+    for hh in ['small', 'med', 'large']:
+        for crop in ['rice', 'fish', 'shrimp']:
+            if crop == 'rice':
+                farm_gross_income[crop][hh] = farm_prod_market[crop][hh] * 1000.0 * price_farm_gate["HYV_Boro"]
+            elif crop == 'fish': 
+                farm_gross_income[crop][hh] = farm_prod_market[crop][hh] * 1000.0 * price_farm_gate["freshw_fish"]
+            elif crop == 'shrimp':
+                farm_gross_income[crop][hh] = farm_prod_market[crop][hh] * 1000.0 * price_farm_gate["saltw_shrimp"]
+                
+    #Production cost
+    for hh in ['small', 'med', 'large']:
+        for crop in ["rice_irrig", "rice_no_irrig", "rice_irrig_landlease", "rice_no_irrig_landlease", "fish_landlease", "fish_no_landlease", "shrimp_landlease", "shrimp_no_landlease"]:
+            if crop == 'rice_irrig':
+                prod_cost[crop][hh] = farmsize[hh] * (var_prod_costs['rice'][hh] + human_lab[hh] + irrigation[hh])        
+            elif crop == "rice_no_irrig":
+                prod_cost[crop][hh] = farmsize[hh] * (var_prod_costs['rice'][hh] + human_lab[hh])   
+            elif crop == "rice_irrig_landlease":
+                prod_cost[crop][hh] = farmsize[hh] * (var_prod_costs['rice'][hh] + human_lab[hh] + irrigation[hh]) + (leasedarea[hh] * land_lease) 
+            elif crop == "rice_no_irrig_landlease":
+                prod_cost[crop][hh] = farmsize[hh] * (var_prod_costs['rice'][hh] + human_lab[hh]) + (leasedarea[hh] * land_lease) 
+            elif crop == "fish_landlease":
+                prod_cost[crop][hh] = (farmsize[hh] * var_prod_costs['fish']) + (leasedarea[hh] * land_lease) 
+            elif crop == "fish_no_landlease":
+                prod_cost[crop][hh] = (farmsize[hh] * var_prod_costs['fish'])
+            elif crop == "shrimp_landlease":
+                prod_cost[crop][hh] = (farmsize[hh] * var_prod_costs['shrimp']) + (leasedarea[hh] * land_lease) 
+            elif crop == "shrimp_no_landlease":
+                prod_cost[crop][hh] = (farmsize[hh] * var_prod_costs['shrimp'])                        
+ 
+    #Farm net income
+    for hh in ['small', 'med', 'large']:
+        for crop in ["rice_irrig", "rice_no_irrig", "rice_irrig_landlease", "rice_no_irrig_landlease", "fish_landlease", "fish_no_landlease", "shrimp_landlease", "shrimp_no_landlease", "fish-rice_landlease", "fish-rice_no_landlease"]:            
+                if crop == "fish-rice_landlease":
+                    farm_net_income[crop][hh] = (farm_net_income["rice_no_irrig_landlease"][hh] + farm_net_income["fish_landlease"][hh])/2.0 - (cost_trans_rice_fish * land_lease) 
+                elif crop == "fish-rice_no_landlease":
+                    farm_net_income[crop][hh] = (farm_net_income["rice_no_irrig"][hh] + farm_net_income["fish_no_landlease"][hh])/2.0 - (cost_trans_rice_fish * land_lease) 
+                else:
+                    farm_net_income[crop][hh] = farm_gross_income[crop.split('_')[0]][hh] - prod_cost[crop][hh]
+                    
+    #Total household income
+    for hh in ['small', 'med', 'large']:
+        for crop in ["rice_irrig", "rice_no_irrig", "rice_irrig_landlease", "rice_no_irrig_landlease", "fish_landlease", "fish_no_landlease", "shrimp_landlease", "shrimp_no_landlease", "fish-rice_landlease", "fish-rice_no_landlease"]:            
+           tot_hh_income[crop][hh] = farm_net_income[crop][hh] + hh_income_additional[hh] + (migrated_hh_members[hh] * 50 * 6 * migr_income * migr_income_send_home)
+
+    #Income above poverty line (corrected for own food consumption)
+    for hh in ['small', 'med', 'large']:
+        for crop in ["rice_irrig", "rice_no_irrig", "rice_irrig_landlease", "rice_no_irrig_landlease", "fish_landlease", "fish_no_landlease", "shrimp_landlease", "shrimp_no_landlease", "fish-rice_landlease", "fish-rice_no_landlease"]:             
+            if crop == "fish-rice_landlease" or crop == "fish-rice_no_landlease":
+                income_above_poverty[crop][hh] = tot_hh_income[crop][hh] > ((poverty_line * 365 * householdsize[hh]) - ((farm_prod_food['fish'][hh] * 1000 * selling_price['rice']) + (farm_prod_food['rice'][hh] * 1000 * selling_price['rice']))/2.0 )
+            else:
+                income_above_poverty[crop][hh] = tot_hh_income[crop][hh] > ((poverty_line * 365 * householdsize[hh]) - (farm_prod_food[crop.split('_')[0]][hh] * 1000 * selling_price[crop.split('_')[0]]))
+
+    #Food security
+    for hh in ['small', 'med', 'large']:
+        for crop in ["rice_irrig", "rice_no_irrig", "rice_irrig_landlease", "rice_no_irrig_landlease", "fish_landlease", "fish_no_landlease", "shrimp_landlease", "shrimp_no_landlease", "fish-rice_landlease", "fish-rice_no_landlease"]:             
+            if crop == "rice_irrig" or crop == "rice_no_irrig" or crop == "rice_irrig_landlease" or crop == "rice_no_irrig_landlease":
+                if (farm_prod_food['rice'][hh] < subs_food_cons['rice'][hh] / 1000.0) and (income_above_poverty[crop][hh] == False):
+                    food_security[crop][hh] = False
+                else:
+                    food_security[crop][hh] = True
+            elif crop == "fish_landlease" or crop == "fish_no_landlease" or crop == "shrimp_landlease" or crop == "shrimp_no_landlease":     
+                if income_above_poverty[crop][hh] == False:
+                    food_security[crop][hh] = False
+                else:
+                    food_security[crop][hh] = True   
+            else:
+                if (farm_prod_food['fish-rice'][hh] < subs_food_cons['rice'][hh] / 1000.0) and (income_above_poverty[crop][hh] == False):
+                    food_security[crop][hh] = False
+                else:
+                    food_security[crop][hh] = True
+    
+    return income_above_poverty, food_security 
