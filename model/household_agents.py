@@ -4,11 +4,11 @@ Created on Wed Dec  7 10:19:01 2022
 
 @author: lorinc
 """
-#%%Agents = rural households
-#Create a list of households with attributes 
 
 def agent_functions(wlog_sev):
 
+    import numpy as np
+    
     """
     Agent to describe the rural households
     
@@ -22,11 +22,11 @@ def agent_functions(wlog_sev):
 	Total employment		    #permanent jobs
 			                    #seasonal jobs
     """            
-
+#%%
     #INIT
     #Agent attributes
     farmsize = {
-    "small": 0.51,
+    "small": np.random.normal(loc=0.51, scale=0.0357),
     "med": 2.02,
     "large": 6.07
     }
@@ -41,7 +41,14 @@ def agent_functions(wlog_sev):
     householdsize = {
     "small": 4.15,
     "med": 4.15,
-    "large": 4.15
+    "large": 4.15,
+    "landless": 4.15
+    }
+
+    fam_member_12 = {
+    "small": 1.,
+    "med": 1.,
+    "large": 1.
     }
     
     leasedarea = {
@@ -81,7 +88,8 @@ def agent_functions(wlog_sev):
     hh_income_additional = {
     "small": 95053.0,
     "med": 95053.0,
-    "large": 95053.0
+    "large": 95053.0,
+    "landless": 47527.0
     }        
 
     #Migrated household members (initial set-up)            
@@ -769,8 +777,8 @@ def agent_functions(wlog_sev):
             },
         "migration_fixed":
             {
-            "perm_empl": 0,
-            "seasonal_empl": 0,
+            "perm_empl": False,
+            "seasonal_empl": False,
             },
         }
 
@@ -837,8 +845,57 @@ def agent_functions(wlog_sev):
             "large": 0,
             }
         } 
+
+    #Aggregate indicators       
+    #Production of rice, fish and shrimp
+    production = {  
+    "rice": 
+        {
+        "small": 0.0,
+        "med": 0.0,
+        "large": 0.0
+        },
+    "fish":
+        {
+        "small": 0.0,
+        "med": 0.0,
+        "large": 0.0
+        },
+    "shrimp":
+        {
+        "small": 0.0,
+        "med": 0.0,
+        "large": 0.0
+        }
+    }    
     
+    #% of population income below poverty line
+    #% of unemployed rural labour
+    employed = {  
+    "rice": 
+        {
+        "small": 0.0,
+        "med": 0.0,
+        "large": 0.0
+        },
+    "fish":
+        {
+        "small": 0.0,
+        "med": 0.0,
+        "large": 0.0
+        },
+    "shrimp":
+        {
+        "small": 0.0,
+        "med": 0.0,
+        "large": 0.0
+        }
+    }       
     
+    #% of population food insecure
+    #% of population likely to migrate
+
+#%%    
     #FUNCTIONS
     #Farm production
     #Rice
@@ -959,4 +1016,55 @@ def agent_functions(wlog_sev):
                 else:
                     food_security[crop][hh] = True
     
-    return income_above_poverty, food_security 
+    #Landless farmers
+    for attr in ["hh_income", "income_above_poverty", "food_security"]:
+        for emp in ["perm_empl", "seasonal_empl"]:
+            if attr == "hh_income":
+                if emp == "perm_empl":
+                    landless_farmer[attr][emp] = (50.0 * 5.0 * migr_income) * householdsize["landless"] * peop_work_landless
+                elif emp == "seasonal_empl":
+                    landless_farmer[attr][emp] = ((days_seas_emp_landless * migr_income) + hh_income_additional["landless"]) * householdsize["landless"] * peop_work_landless
+            elif attr == "income_above_poverty":            
+                landless_farmer[attr][emp] = landless_farmer["hh_income"][emp] > (householdsize["landless"] * poverty_line * 365.0)
+            elif attr == "food_security":            
+                landless_farmer[attr][emp] = landless_farmer["income_above_poverty"][emp]         
+
+    #Required hired permanent farm employment
+    for hh in ['small', 'med', 'large']:
+        for crop in ['rice', 'fish', 'shrimp']:
+            if (householdsize[hh] - fam_member_12[hh] - migrated_hh_members[hh]) > farmempl["family_perm"][crop][hh]:
+                req_perm_farm_empl[crop][hh] = farmempl["hired_perm"][crop][hh]
+            else:
+                if (householdsize[hh] - fam_member_12[hh] - migrated_hh_members[hh]) > 0.0:
+                    req_perm_farm_empl[crop][hh] = farmempl["hired_perm"][crop][hh] + (householdsize[hh] - fam_member_12[hh] - migrated_hh_members[hh])
+                else:
+                    req_perm_farm_empl[crop][hh] = farmempl["hired_perm"][crop][hh] + farmempl["family_perm"][crop][hh]
+             
+    #Required hired seasonal farm employment
+    for hh in ['small', 'med', 'large']:
+        for crop in ['rice', 'fish', 'shrimp']:
+            req_seasonal_farm_empl[crop][hh] = farmempl["hired_temp"][crop][hh] / temp_empl[hh]
+
+
+    #Migration - family member
+    for hh in ['small', 'med', 'large']:
+        for crop in ["rice_irrig", "rice_no_irrig", "rice_irrig_landlease", "rice_no_irrig_landlease", "fish_landlease", "fish_no_landlease", "shrimp_landlease", "shrimp_no_landlease", "fish-rice_landlease", "fish-rice_no_landlease"]:             
+            if income_above_poverty[crop][hh] == False and food_security[crop][hh] == False and ((householdsize[hh] - fam_member_12[hh])>2):
+                migration_family[crop][hh] = True
+            else:
+                migration_family[crop][hh] = False
+
+#%%
+    #Aggregate indicators
+    
+    #Production of rice, fish and shrimp
+    for hh in ['small', 'med', 'large']:
+        for crop in ['rice', 'fish', 'shrimp']:
+            production[crop][hh] = farm_prod_market[crop][hh] + farm_prod_food[crop][hh]
+            
+    #Employment
+    for hh in ['small', 'med', 'large']:
+        for crop in ['rice', 'fish', 'shrimp']:
+            employed[crop][hh] = req_perm_farm_empl[crop][hh] + req_seasonal_farm_empl[crop][hh]    
+    
+    return production, income_above_poverty, employed, food_security, migration_family, landless_farmer 

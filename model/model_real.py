@@ -38,7 +38,7 @@ trmsedrate = model_params['trmsedrate']
 cellsize = 100 #100m
 mslstart = 0.00
 startyear = 2022
-endyear = 2030
+endyear = 2050
 kslr = 0.02
 mindraingrad = 0.1 / 1000. # 10cm per km minimum drainage gradient
 year = startyear
@@ -323,7 +323,9 @@ for year in np.arange(startyear, endyear+1,1):
         trmlevelyear2 = np.maximum(0.0, np.minimum(pitelev + trmlevelyear1 + trmsedrate, h_wl) - elevmat) * bheel_mask
         plt.matshow(trmlevelyear1)
         plt.colorbar()
-        plt.title('trmlevel_' + str(p_id) + '_' +  str(year))
+        plt.title('trmlevel_polder_' + str(p_id) + '_' +  str(year))
+        plt.show()
+        plt.close()
    
     if is_TRM:
         elevmat = elevmat + trmlevelyear1
@@ -374,38 +376,38 @@ for year in np.arange(startyear, endyear+1,1):
     #init arrays
     farm_gross_income_rice_small = np.zeros(np.shape(elevmat))
     
-    #SOCIO-ECONOMICS
-    #Calculate income, food security and migration with wet and dry season water logging severity as input
-    for x in np.arange(0, np.shape(elevmat)[0]):
-        for y in np.arange(0, np.shape(elevmat)[1]):
-                (income_above_poverty, food_security) = agent_functions(waterlogged_sev_wet[x,y])
-                (income_above_poverty, food_security) = agent_functions(0.8)
-                farm_gross_income_rice_small[x,y]=socio.farm_gross_income['rice']['small'] #ind_id=0
-    #update dataframe
-    df = pd.concat([df.copy(),pd.DataFrame([{'Year':year, 'Indicator':'gross_income_rice_small', 'Polder':0, 'Value':np.mean(farm_gross_income_rice_small[polmat!=0])}])])
-    for p in np.arange(1, no_polder+1):
-        df = pd.concat([df.copy(),pd.DataFrame([{'Year':year, 'Indicator':'gross_income_rice_small', 'Polder':p, 'Value':np.mean(farm_gross_income_rice_small[polmat==p])}])])
+    # #SOCIO-ECONOMICS
+    # #Calculate income, food security and migration with wet and dry season water logging severity as input
+    # for x in np.arange(0, np.shape(elevmat)[0]):
+    #     for y in np.arange(0, np.shape(elevmat)[1]):
+    #             (production, income_above_poverty, employed, food_security, migration_family, landless_farmer) = agent_functions(waterlogged_sev_wet[x,y])
+    #             (production, income_above_poverty, employed, food_security, migration_family, landless_farmer) = agent_functions(0.8)
+    #             farm_gross_income_rice_small[x,y]=socio.farm_gross_income['rice']['small'] #ind_id=0
+    # #update dataframe
+    # df = pd.concat([df.copy(),pd.DataFrame([{'Year':year, 'Indicator':'gross_income_rice_small', 'Polder':0, 'Value':np.mean(farm_gross_income_rice_small[polmat!=0])}])])
+    # for p in np.arange(1, no_polder+1):
+    #     df = pd.concat([df.copy(),pd.DataFrame([{'Year':year, 'Indicator':'gross_income_rice_small', 'Polder':p, 'Value':np.mean(farm_gross_income_rice_small[polmat==p])}])])
 
-    #filename
-    filename_gross_income=r'p:\11208012-011-nabaripoma\Model\Python\results\real\gross_income\gross_income_rice_' + str(year) + '.png'
+    # #filename
+    # filename_gross_income=r'p:\11208012-011-nabaripoma\Model\Python\results\real\gross_income\gross_income_rice_' + str(year) + '.png'
         
-    if plot:
-        #plot
-        plt.rcParams["figure.figsize"] = [20, 20]
-        plt.matshow(farm_gross_income_rice_small)
-        plt.title('Gross income for rice in small farms')
-        plt.colorbar()
-        plt.suptitle(year, fontsize=16, x=0.5)
-        plt.tight_layout()
-        plt.savefig(filename_gross_income, format='png', bbox_inches='tight', dpi=300)
-        plt.show()
-        plt.close()
+    # if plot:
+    #     #plot
+    #     plt.rcParams["figure.figsize"] = [20, 20]
+    #     plt.matshow(farm_gross_income_rice_small)
+    #     plt.title('Gross income for rice in small farms')
+    #     plt.colorbar()
+    #     plt.suptitle(year, fontsize=16, x=0.5)
+    #     plt.tight_layout()
+    #     plt.savefig(filename_gross_income, format='png', bbox_inches='tight', dpi=300)
+    #     plt.show()
+    #     plt.close()
     
-    if raster:
-        if year == startyear or year == endyear: 
-            #Write raster file (socio-econnomics)
-            with rasterio.open(r'p:\11208012-011-nabaripoma\Model\Python\results\real\gross_income\geotif\gross_income_rice_' + str(year) + '.tif', 'w', **ras_meta) as dst:
-                dst.write(farm_gross_income_rice_small, indexes=1) #gross income  
+    # if raster:
+    #     if year == startyear or year == endyear: 
+    #         #Write raster file (socio-econnomics)
+    #         with rasterio.open(r'p:\11208012-011-nabaripoma\Model\Python\results\real\gross_income\geotif\gross_income_rice_' + str(year) + '.tif', 'w', **ras_meta) as dst:
+    #             dst.write(farm_gross_income_rice_small, indexes=1) #gross income  
            
     #update loop
     i=i+1
