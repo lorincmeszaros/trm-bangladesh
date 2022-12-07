@@ -7,6 +7,8 @@ This demontrsation has been developed as part of the 2022 research project:
 'Integrated Assessment Modelling of Tidal River Management in Bangladesh'.
 """
 #set current working directory
+import os
+os.chdir(r'C:\Users\lorinc\OneDrive - Stichting Deltares\Documents\GitHub\trm-bangladesh\model')
 import numpy as np
 import math as math
 import pcraster as pcr
