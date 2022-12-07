@@ -149,109 +149,44 @@ irrigation_perc = {
 "large": np.random.normal(loc=0.703, scale=(1-0.703)/3)
 }
     
-#init
-
-#Land owner agents
-landowner_agents = {
-    "rice_irrig": 
-        {
-        "small": 0,
-        "med": 0,
-        "large": 0
-        },
-    "rice_no_irrig": 
-        {
-        "small": 0,
-        "med": 0,
-        "large": 0
-        },
-    "rice_irrig_landlease": 
-        {
-        "small": 0,
-        "med": 0,
-        "large": 0
-        },
-    "rice_no_irrig_landlease": 
-        {
-        "small": 0,
-        "med": 0,
-        "large": 0
-        },
-    "fish_landlease":
-        {
-        "small": 0,
-        "med": 0,
-        "large": 0,
-        },
-    "fish_no_landlease":
-        {
-        "small": 0,
-        "med": 0,
-        "large": 0,
-        },
-    "shrimp_landlease":
-        {
-        "small": 0,
-        "med": 0,
-        "large": 0,
-        },
-    "shrimp_no_landlease":
-        {
-        "small": 0,
-        "med": 0,
-        "large": 0,
-        },
-    "fish-rice_landlease":
-        {
-        "small": 0,
-        "med": 0,
-        "large": 0,
-        },
-    "fish-rice_no_landlease":
-        {
-        "small": 0,
-        "med": 0,
-        "large": 0,
-        }
-    }
 
 #init arrays
 landless_agents = np.zeros(np.shape(elevmat))
-landowner_agents_xy = pd.DataFrame(columns=['x', 'y', 'list'])
-#Calculate number of agents    
+landowner_agents_xy = np.zeros((np.shape(elevmat)[0], np.shape(elevmat)[1], 30))
+#Calculate number of agents  
+i=0  
 for x in np.arange(0, np.shape(elevmat)[0]):
     for y in np.arange(0, np.shape(elevmat)[1]):
         #landlesss agents
         landless_agents[x,y] = hhmat[x,y] * tot_pop_agr['landless']
         #landowner agents
-        # rice_irrig_agent_small[x,y] = hhmat[x,y] * tot_pop_agr['small'] * croppping_pattern['small']['rice'] * irrigation_perc['small'] * land_ownership['small']['landowner']
-        # rice_irrig_agent_med[x,y] = hhmat[x,y] * tot_pop_agr['small'] * croppping_pattern['small']['rice'] * irrigation_perc['small'] * land_ownership['small']['landowner']
 
         for hh in ['small', 'med', 'large']:
             for crop in ["rice_irrig", "rice_no_irrig", "rice_irrig_landlease", "rice_no_irrig_landlease", "fish_landlease", "fish_no_landlease", "shrimp_landlease", "shrimp_no_landlease", "fish-rice_landlease", "fish-rice_no_landlease"]:
                 if crop == "rice_irrig":
-                    landowner_agents[crop][hh] = hhmat[x,y] * tot_pop_agr[hh] * croppping_pattern[hh]['rice'] * irrigation_perc[hh] * land_ownership[hh]['landowner']
+                    landowner_agents_xy[x,y,i] = hhmat[x,y] * tot_pop_agr[hh] * croppping_pattern[hh]['rice'] * irrigation_perc[hh] * land_ownership[hh]['landowner']
                 elif crop == "rice_no_irrig":
-                    landowner_agents[crop][hh] = hhmat[x,y] * tot_pop_agr[hh] * croppping_pattern[hh]['rice'] * (1.0 - irrigation_perc[hh]) * land_ownership[hh]['landowner']
+                    landowner_agents_xy[x,y,i] = hhmat[x,y] * tot_pop_agr[hh] * croppping_pattern[hh]['rice'] * (1.0 - irrigation_perc[hh]) * land_ownership[hh]['landowner']
                 elif crop == "rice_irrig_landlease":
-                    landowner_agents[crop][hh] = hhmat[x,y] * tot_pop_agr[hh] * croppping_pattern[hh]['rice'] * irrigation_perc[hh] * land_ownership[hh]['tenant']
+                    landowner_agents_xy[x,y,i] = hhmat[x,y] * tot_pop_agr[hh] * croppping_pattern[hh]['rice'] * irrigation_perc[hh] * land_ownership[hh]['tenant']
                 elif crop == "rice_no_irrig_landlease":
-                    landowner_agents[crop][hh] = hhmat[x,y] * tot_pop_agr[hh] * croppping_pattern[hh]['rice'] * (1.0 - irrigation_perc[hh]) * land_ownership[hh]['tenant']
+                    landowner_agents_xy[x,y,i] = hhmat[x,y] * tot_pop_agr[hh] * croppping_pattern[hh]['rice'] * (1.0 - irrigation_perc[hh]) * land_ownership[hh]['tenant']
                 elif crop == "fish_landlease":
-                    landowner_agents[crop][hh] = hhmat[x,y] * tot_pop_agr[hh] * croppping_pattern[hh]['fish'] * land_ownership[hh]['tenant']
+                    landowner_agents_xy[x,y,i] = hhmat[x,y] * tot_pop_agr[hh] * croppping_pattern[hh]['fish'] * land_ownership[hh]['tenant']
                 elif crop == "fish_no_landlease":
-                    landowner_agents[crop][hh] = hhmat[x,y] * tot_pop_agr[hh] * croppping_pattern[hh]['fish'] * land_ownership[hh]['landowner']
+                    landowner_agents_xy[x,y,i] = hhmat[x,y] * tot_pop_agr[hh] * croppping_pattern[hh]['fish'] * land_ownership[hh]['landowner']
                 elif crop == "shrimp_landlease":
-                    landowner_agents[crop][hh] = hhmat[x,y] * tot_pop_agr[hh] * croppping_pattern[hh]['shrimp'] * land_ownership[hh]['tenant']
+                    landowner_agents_xy[x,y,i] = hhmat[x,y] * tot_pop_agr[hh] * croppping_pattern[hh]['shrimp'] * land_ownership[hh]['tenant']
                 elif crop == "shrimp_no_landlease":
-                    landowner_agents[crop][hh] = hhmat[x,y] * tot_pop_agr[hh] * croppping_pattern[hh]['shrimp'] * land_ownership[hh]['landowner']
+                    landowner_agents_xy[x,y,i] = hhmat[x,y] * tot_pop_agr[hh] * croppping_pattern[hh]['shrimp'] * land_ownership[hh]['landowner']
                 elif crop == "fish-rice_landlease":
-                    landowner_agents[crop][hh] = hhmat[x,y] * tot_pop_agr[hh] * croppping_pattern[hh]['fish-rice'] * land_ownership[hh]['tenant']
+                    landowner_agents_xy[x,y,i] = hhmat[x,y] * tot_pop_agr[hh] * croppping_pattern[hh]['fish-rice'] * land_ownership[hh]['tenant']
                 elif crop == "fish-rice_no_landlease":
-                    landowner_agents[crop][hh] = hhmat[x,y] * tot_pop_agr[hh] * croppping_pattern[hh]['fish-rice'] * land_ownership[hh]['landowner']
-               
-        landowner_agents_xy = pd.concat([landowner_agents_xy.copy(),pd.DataFrame([{'x':x, 'y':y, 'list':list(landowner_agents.items())}])])                             
-        
+                    landowner_agents_xy[x,y,i] = hhmat[x,y] * tot_pop_agr[hh] * croppping_pattern[hh]['fish-rice'] * land_ownership[hh]['landowner']
+                
+                i = i + 1
+        i = 0
+                    
 # #Verify agent numbers
 # res = dict()
 # for sub in landowner_agents.values():
