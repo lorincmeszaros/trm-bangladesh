@@ -26,7 +26,7 @@ def agent_functions(wlog_sev):
     #INIT
     #Agent attributes
     farmsize = {
-    "small": np.random.normal(loc=0.51, scale=0.0357),
+    "small": np.random.normal(loc=0.51, scale=0.158),
     "med": 2.02,
     "large": 6.07
     }
@@ -46,9 +46,10 @@ def agent_functions(wlog_sev):
     }
 
     fam_member_12 = {
-    "small": 1.,
-    "med": 1.,
-    "large": 1.
+    "small": 1.0375,
+    "med": 1.0375,
+    "large": 1.0375,
+    "landless": 1.0375
     }
     
     leasedarea = {
@@ -98,6 +99,13 @@ def agent_functions(wlog_sev):
     "med": 0.3,
     "large": 0.3
     }   
+
+    #Irrigation % of farms
+    irrigation_perc = {
+    "small": 67.0/100.,
+    "med": 74.6/100.,
+    "large": 70.30/100.
+    }
     
     #Farm production
     farmprod = {
@@ -203,14 +211,7 @@ def agent_functions(wlog_sev):
     
     #Land lease
     land_lease = 8090. #BDT/hectare/year
-    
-    #Irrigation % of farms
-    irrigation_perc = {
-    "small": 67.0/100.,
-    "med": 74.6/100.,
-    "large": 70.30/100.
-    }
-    
+        
     #Variable production costs (- irrigation and human labour) (BDT/hectare)   
     var_prod_costs = {  
     "rice": 
@@ -1061,10 +1062,5 @@ def agent_functions(wlog_sev):
     for hh in ['small', 'med', 'large']:
         for crop in ['rice', 'fish', 'shrimp']:
             production[crop][hh] = farm_prod_market[crop][hh] + farm_prod_food[crop][hh]
-            
-    #Employment
-    for hh in ['small', 'med', 'large']:
-        for crop in ['rice', 'fish', 'shrimp']:
-            employed[crop][hh] = req_perm_farm_empl[crop][hh] + req_seasonal_farm_empl[crop][hh]    
     
-    return production, income_above_poverty, employed, food_security, migration_family, landless_farmer 
+    return production, income_above_poverty, req_perm_farm_empl, req_seasonal_farm_empl, food_security, migration_family, landless_farmer 
