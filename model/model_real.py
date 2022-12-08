@@ -39,7 +39,7 @@ trmsedrate = model_params['trmsedrate']
 cellsize = 100 #100m
 mslstart = 0.00
 startyear = 2022
-endyear = 2050
+endyear = 2100
 kslr = 0.02
 mindraingrad = 0.1 / 1000. # 10cm per km minimum drainage gradient
 year = startyear
@@ -158,42 +158,51 @@ i=0
 for x in np.arange(0, np.shape(elevmat)[0]):
     for y in np.arange(0, np.shape(elevmat)[1]):
         #landlesss agents
-        landless_agents[x,y] = hhmat[x,y] * tot_pop_agr['landless']
+        landless_agents[x,y] = np.around(hhmat[x,y] * tot_pop_agr['landless'])
         #landowner agents
-
+        
+        #i=0  rice_irrig_small                 #i=1  rice_irrig_med               #i=2  rice_irrig_large
+        #i=3  rice_no_irrig_small              #i=4  rice_no_irrig_med            #i=5  rice_no_irrig_large
+        #i=6  rice_irrig_landlease_small       #i=7  rice_irrig_landlease_med     #i=8  rice_irrig_landlease_large
+        #i=9  rice_no_irrig_landlease_small    #i=10 rice_no_irrig_landlease_med  #i=11 rice_no_irrig_landlease_large
+        #i=12 fish_landlease_small             #i=13 fish_landlease_med           #i=14 fish_landlease_large
+        #i=15 fish_no_landlease_small          #i=16 fish_no_landlease_med        #i=17 fish_no_landlease_large
+        #i=18 shrimp_landlease_small           #i=18 shrimp_landlease_med         #i=20 shrimp_landlease_large
+        #i=21 shrimp_no_landlease_small        #i=22 shrimp_no_landlease_med      #i=23 shrimp_no_landlease_large
+        #i=24 fish-rice_landlease_small        #i=25 fish-rice_landlease_med      #i=26 fish-rice_landlease_large
+        #i=27 fish-rice_no_landlease_small     #i=28 fish-rice_no_landlease_med   #i=29 fish-rice_no_landlease_large
+      
+        
         for hh in ['small', 'med', 'large']:
             for crop in ["rice_irrig", "rice_no_irrig", "rice_irrig_landlease", "rice_no_irrig_landlease", "fish_landlease", "fish_no_landlease", "shrimp_landlease", "shrimp_no_landlease", "fish-rice_landlease", "fish-rice_no_landlease"]:
                 if crop == "rice_irrig":
-                    landowner_agents_xy[x,y,i] = hhmat[x,y] * tot_pop_agr[hh] * croppping_pattern[hh]['rice'] * irrigation_perc[hh] * land_ownership[hh]['landowner']
+                    landowner_agents_xy[x,y,i] = np.around(hhmat[x,y] * tot_pop_agr[hh] * croppping_pattern[hh]['rice'] * irrigation_perc[hh] * land_ownership[hh]['landowner'])
                 elif crop == "rice_no_irrig":
-                    landowner_agents_xy[x,y,i] = hhmat[x,y] * tot_pop_agr[hh] * croppping_pattern[hh]['rice'] * (1.0 - irrigation_perc[hh]) * land_ownership[hh]['landowner']
+                    landowner_agents_xy[x,y,i] = np.around(hhmat[x,y] * tot_pop_agr[hh] * croppping_pattern[hh]['rice'] * (1.0 - irrigation_perc[hh]) * land_ownership[hh]['landowner'])
                 elif crop == "rice_irrig_landlease":
-                    landowner_agents_xy[x,y,i] = hhmat[x,y] * tot_pop_agr[hh] * croppping_pattern[hh]['rice'] * irrigation_perc[hh] * land_ownership[hh]['tenant']
+                    landowner_agents_xy[x,y,i] = np.around(hhmat[x,y] * tot_pop_agr[hh] * croppping_pattern[hh]['rice'] * irrigation_perc[hh] * land_ownership[hh]['tenant'])
                 elif crop == "rice_no_irrig_landlease":
-                    landowner_agents_xy[x,y,i] = hhmat[x,y] * tot_pop_agr[hh] * croppping_pattern[hh]['rice'] * (1.0 - irrigation_perc[hh]) * land_ownership[hh]['tenant']
+                    landowner_agents_xy[x,y,i] = np.around(hhmat[x,y] * tot_pop_agr[hh] * croppping_pattern[hh]['rice'] * (1.0 - irrigation_perc[hh]) * land_ownership[hh]['tenant'])
                 elif crop == "fish_landlease":
-                    landowner_agents_xy[x,y,i] = hhmat[x,y] * tot_pop_agr[hh] * croppping_pattern[hh]['fish'] * land_ownership[hh]['tenant']
+                    landowner_agents_xy[x,y,i] = np.around(hhmat[x,y] * tot_pop_agr[hh] * croppping_pattern[hh]['fish'] * land_ownership[hh]['tenant'])
                 elif crop == "fish_no_landlease":
-                    landowner_agents_xy[x,y,i] = hhmat[x,y] * tot_pop_agr[hh] * croppping_pattern[hh]['fish'] * land_ownership[hh]['landowner']
+                    landowner_agents_xy[x,y,i] = np.around(hhmat[x,y] * tot_pop_agr[hh] * croppping_pattern[hh]['fish'] * land_ownership[hh]['landowner'])
                 elif crop == "shrimp_landlease":
-                    landowner_agents_xy[x,y,i] = hhmat[x,y] * tot_pop_agr[hh] * croppping_pattern[hh]['shrimp'] * land_ownership[hh]['tenant']
+                    landowner_agents_xy[x,y,i] = np.around(hhmat[x,y] * tot_pop_agr[hh] * croppping_pattern[hh]['shrimp'] * land_ownership[hh]['tenant'])
                 elif crop == "shrimp_no_landlease":
-                    landowner_agents_xy[x,y,i] = hhmat[x,y] * tot_pop_agr[hh] * croppping_pattern[hh]['shrimp'] * land_ownership[hh]['landowner']
+                    landowner_agents_xy[x,y,i] = np.around(hhmat[x,y] * tot_pop_agr[hh] * croppping_pattern[hh]['shrimp'] * land_ownership[hh]['landowner'])
                 elif crop == "fish-rice_landlease":
-                    landowner_agents_xy[x,y,i] = hhmat[x,y] * tot_pop_agr[hh] * croppping_pattern[hh]['fish-rice'] * land_ownership[hh]['tenant']
+                    landowner_agents_xy[x,y,i] = np.around(hhmat[x,y] * tot_pop_agr[hh] * croppping_pattern[hh]['fish-rice'] * land_ownership[hh]['tenant'])
                 elif crop == "fish-rice_no_landlease":
-                    landowner_agents_xy[x,y,i] = hhmat[x,y] * tot_pop_agr[hh] * croppping_pattern[hh]['fish-rice'] * land_ownership[hh]['landowner']
+                    landowner_agents_xy[x,y,i] = np.around(hhmat[x,y] * tot_pop_agr[hh] * croppping_pattern[hh]['fish-rice'] * land_ownership[hh]['landowner'])
                 
                 i = i + 1
         i = 0
-                    
-# #Verify agent numbers
-# res = dict()
-# for sub in landowner_agents.values():
-#     for key, ele in sub.items():
-#         res[key] = ele + res.get(key, 0)     
-        
-# sum(res.values())
+
+# #verify agent numbers                    
+# print(hhmat[x,y])
+# print(landless_agents[x,y] + np.sum(landowner_agents_xy, axis = 2)[x,y])
+
 
 #initial pcraster calculation
 #set clonemap
@@ -475,23 +484,75 @@ for year in np.arange(startyear, endyear+1,1):
     
     #river salt - later, for now fixed
     
-    #init arrays
-    farm_gross_income_rice_small = np.zeros(np.shape(elevmat))
+   
+    #SOCIO-ECONOMICS
     
-    # #SOCIO-ECONOMICS
-    # #Calculate income, food security and migration with wet and dry season water logging severity as input
-    # for x in np.arange(0, np.shape(elevmat)[0]):
-    #     for y in np.arange(0, np.shape(elevmat)[1]):
-    #             (production, income_above_poverty, employed, food_security, migration_family, landless_farmer) = agent_functions(waterlogged_sev_wet[x,y])
-    #             (production, income_above_poverty, employed, food_security, migration_family, landless_farmer) = agent_functions(0.8)
-    #             farm_gross_income_rice_small[x,y]=socio.farm_gross_income['rice']['small'] #ind_id=0
-    # #update dataframe
-    # df = pd.concat([df.copy(),pd.DataFrame([{'Year':year, 'Indicator':'gross_income_rice_small', 'Polder':0, 'Value':np.mean(farm_gross_income_rice_small[polmat!=0])}])])
-    # for p in np.arange(1, no_polder+1):
-    #     df = pd.concat([df.copy(),pd.DataFrame([{'Year':year, 'Indicator':'gross_income_rice_small', 'Polder':p, 'Value':np.mean(farm_gross_income_rice_small[polmat==p])}])])
+    #init arrays
+    production_rice = np.zeros(np.shape(elevmat))
+    production_fish = np.zeros(np.shape(elevmat))
+    production_shrimp = np.zeros(np.shape(elevmat))
+    pop_inc_below_pov = np.zeros(np.shape(elevmat))
+    emp_perm = np.zeros(np.shape(elevmat))
+    emp_seasonal = np.zeros(np.shape(elevmat))
+    pop_food_insecure = np.zeros(np.shape(elevmat))
+    pop_migration = np.zeros(np.shape(elevmat))
+    
+    ind_name_list = ['production_rice', 'production_fish', 'production_shrimp', 'pop_inc_below_pov', 'emp_perm', 'emp_seasonal', 'pop_food_insecure', 'pop_migration']
+    ind_value_list= [production_rice, production_fish, production_shrimp, pop_inc_below_pov, emp_perm, emp_seasonal, pop_food_insecure, pop_migration]
+    
+    #i=0  rice_irrig_small                 #i=1  rice_irrig_med               #i=2  rice_irrig_large
+    #i=3  rice_no_irrig_small              #i=4  rice_no_irrig_med            #i=5  rice_no_irrig_large
+    #i=6  rice_irrig_landlease_small       #i=7  rice_irrig_landlease_med     #i=8  rice_irrig_landlease_large
+    #i=9  rice_no_irrig_landlease_small    #i=10 rice_no_irrig_landlease_med  #i=11 rice_no_irrig_landlease_large
+    #i=12 fish_landlease_small             #i=13 fish_landlease_med           #i=14 fish_landlease_large
+    #i=15 fish_no_landlease_small          #i=16 fish_no_landlease_med        #i=17 fish_no_landlease_large
+    #i=18 shrimp_landlease_small           #i=18 shrimp_landlease_med         #i=20 shrimp_landlease_large
+    #i=21 shrimp_no_landlease_small        #i=22 shrimp_no_landlease_med      #i=23 shrimp_no_landlease_large
+    #i=24 fish-rice_landlease_small        #i=25 fish-rice_landlease_med      #i=26 fish-rice_landlease_large
+    #i=27 fish-rice_no_landlease_small     #i=28 fish-rice_no_landlease_med   #i=29 fish-rice_no_landlease_large
+    
+    
+    #Calculate income, food security and migration with wet and dry season water logging severity as input
+    for x in np.arange(0, np.shape(elevmat)[0]):
+        for y in np.arange(0, np.shape(elevmat)[1]):
+            if landless_agents[x,y] >= 1.0:
+                for no_agent in np.arange(1, landless_agents[x,y]+1):
+                    landless_farmer = agent_functions(waterlogged_sev_wet[x,y])            
+            else:
+                pass
+                
+            for i in np.arange(0, 30):
+                if landowner_agents_xy[x,y,i] >= 1.0:
+                    for no_agent in np.arange(1, landowner_agents_xy[x,y,i]+1):
+                        (production, income_above_poverty, req_perm_farm_empl, req_seasonal_farm_empl, food_security, migration_family, landless_farmer) = agent_functions(0.8) #agent_functions(waterlogged_sev_wet[x,y])
+                        #production rice
+                        if i==0 or i==3 or i==6 or i==9:
+                            production_rice[x,y] = production_rice[x,y] + production['rice']['small']
+                        elif i==1 or i==4 or i==7 or i==10:
+                            production_rice[x,y] = production_rice[x,y] + production['rice']['med']
+                        elif i==2 or i==5 or i==8 or i==11:
+                            production_rice[x,y] = production_rice[x,y] + production['rice']['large']
+                        
+                        #production fish
+                        if i==12 or i==15:
+                            production_rice[x,y] = production_rice[x,y] + production['fish']['small']
+                        elif i==13 or i==16:
+                            production_rice[x,y] = production_rice[x,y] + production['fish']['med']
+                        elif i==14 or i==17:
+                            production_rice[x,y] = production_rice[x,y] + production['fish']['large']
+                        
+                else:
+                    pass
 
-    # #filename
-    # filename_gross_income=r'p:\11208012-011-nabaripoma\Model\Python\results\real\gross_income\gross_income_rice_' + str(year) + '.png'
+for year in np.arange(startyear, endyear+1,1):                    
+    #update dataframe
+    #df = pd.concat([df.copy(),pd.DataFrame([{'Year':year, 'Indicator':'gross_income_rice_small', 'Polder':0, 'Value':np.mean(farm_gross_income_rice_small[polmat!=0])}])])
+    for ind in np.arange(0, len(ind_name_list)):
+        for p in np.arange(1, no_polder+1):
+            df = pd.concat( [df.copy(),pd.DataFrame([{'Year':year, 'Indicator': ind_name_list[ind], 'Polder':p, 'Value': np.mean(ind_value_list[ind][polmat==p]) }])] )
+
+    #filename
+    filename_gross_income=r'p:\11208012-011-nabaripoma\Model\Python\results\real\gross_income\gross_income_rice_' + str(year) + '.png'
         
     # if plot:
     #     #plot
