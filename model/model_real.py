@@ -28,7 +28,7 @@ model_params = {
 
 #Options
 plot = False
-raster = True
+raster = False
 
 #%%INITIALIZE
 #Model parameters
@@ -47,11 +47,9 @@ msl = 0.00
 
 #Read grid maps   
 # Read the elevation (topography/bathymetry)
-elev_raster = rioxarray.open_rasterio(r'p:\11208012-011-nabaripoma\Data\elevation.tif')
+elev_raster = rioxarray.open_rasterio(r'p:\11208012-011-nabaripoma\Data\elevation_fabdem.tif')
 elevmat = elev_raster.to_numpy().squeeze()
-elevmat[elevmat<-52.0] = -52.0
-elevmat[elevmat==0] = -57.0
-elevmat = elevmat + 52.0
+
 #plot
 plt.matshow(elevmat)
 plt.title('elevation')
@@ -151,14 +149,16 @@ irrigation_perc = {
     
 
 #init arrays
-landless_agents = np.zeros(np.shape(elevmat))
+landless_agents_perm = np.zeros(np.shape(elevmat))
+landless_agents_seas = np.zeros(np.shape(elevmat))
 landowner_agents_xy = np.zeros((np.shape(elevmat)[0], np.shape(elevmat)[1], 30))
 #Calculate number of agents  
 i=0  
 for x in np.arange(0, np.shape(elevmat)[0]):
     for y in np.arange(0, np.shape(elevmat)[1]):
         #landlesss agents
-        landless_agents[x,y] = np.around(hhmat[x,y] * tot_pop_agr['landless'])
+        landless_agents_perm[x,y] = np.around(hhmat[x,y] * tot_pop_agr['landless']*0.5)
+        landless_agents_seas[x,y] = np.around(hhmat[x,y] * tot_pop_agr['landless']*0.5)
         #landowner agents
         
         #i=0  rice_irrig_small                 #i=1  rice_irrig_med               #i=2  rice_irrig_large
@@ -260,12 +260,9 @@ is_land = rsmat == 0
 
 #%%RUN CALCULATION (Loop from 2022 to 2100)
 #initialize arrays and lists
-indicators_av=np.zeros((3,(endyear-startyear)+1,1))
-indicators_pol=np.zeros((3,(endyear-startyear)+1,no_polder))
 df = pd.DataFrame(columns=['Year', 'Indicator', 'Polder','Value'])
 
 #loop over timesteps
-i=0
 is_TRM = False
 is_TRM_prev = False
 trmlevelyear1 = np.full(np.shape(elevmat),0)
@@ -477,13 +474,7 @@ for year in np.arange(startyear, endyear+1,1):
             #Write raster file (elevation)   
             with rasterio.open(r'p:\11208012-011-nabaripoma\Model\Python\results\real\elevation\geotif\elevation_' + str(year) + '.tif', 'w', **ras_meta) as dst:
                 dst.write(elevmat, indexes=1) #elevation
-
-    #river flow
-    
-    #river bed --> update elevation
-    
-    #river salt - later, for now fixed
-    
+  
    
     #SOCIO-ECONOMICS
     
@@ -506,7 +497,7 @@ for year in np.arange(startyear, endyear+1,1):
     #i=9  rice_no_irrig_landlease_small    #i=10 rice_no_irrig_landlease_med  #i=11 rice_no_irrig_landlease_large
     #i=12 fish_landlease_small             #i=13 fish_landlease_med           #i=14 fish_landlease_large
     #i=15 fish_no_landlease_small          #i=16 fish_no_landlease_med        #i=17 fish_no_landlease_large
-    #i=18 shrimp_landlease_small           #i=18 shrimp_landlease_med         #i=20 shrimp_landlease_large
+    #i=18 shrimp_landlease_small           #i=19 shrimp_landlease_med         #i=20 shrimp_landlease_large
     #i=21 shrimp_no_landlease_small        #i=22 shrimp_no_landlease_med      #i=23 shrimp_no_landlease_large
     #i=24 fish-rice_landlease_small        #i=25 fish-rice_landlease_med      #i=26 fish-rice_landlease_large
     #i=27 fish-rice_no_landlease_small     #i=28 fish-rice_no_landlease_med   #i=29 fish-rice_no_landlease_large
@@ -515,65 +506,306 @@ for year in np.arange(startyear, endyear+1,1):
     #Calculate income, food security and migration with wet and dry season water logging severity as input
     for x in np.arange(0, np.shape(elevmat)[0]):
         for y in np.arange(0, np.shape(elevmat)[1]):
-            if landless_agents[x,y] >= 1.0:
-                for no_agent in np.arange(1, landless_agents[x,y]+1):
-                    landless_farmer = agent_functions(waterlogged_sev_wet[x,y])            
+            population=np.sum(landowner_agents_xy[x,y,:]) + landless_agents_perm[x,y] + landless_agents_seas[x,y]
+            #landless agents
+            if landless_agents_perm[x,y] >= 1.0:
+                for no_agent in np.arange(1, landless_agents_perm[x,y]+1):
+                    (production, income_above_poverty, req_perm_farm_empl, req_seasonal_farm_empl, food_security, migration_family, landless_farmer) = agent_functions(waterlogged_sev_wet[x,y])            
+                    
+                    pop_inc_below_pov[x,y] = pop_inc_below_pov[x,y] + landless_farmer['income_above_poverty']['perm_empl']
+                    pop_food_insecure[x,y] = pop_food_insecure[x,y] + landless_farmer['food_security']['perm_empl']
+
+            if landless_agents_seas[x,y] >= 1.0:
+                for no_agent in np.arange(1, landless_agents_seas[x,y]+1):
+                    (production, income_above_poverty, req_perm_farm_empl, req_seasonal_farm_empl, food_security, migration_family, landless_farmer) = agent_functions(waterlogged_sev_wet[x,y])            
+                    
+                    pop_inc_below_pov[x,y] = pop_inc_below_pov[x,y] + landless_farmer['income_above_poverty']['seasonal_empl'] 
+                    pop_food_insecure[x,y] = pop_food_insecure[x,y] + landless_farmer['food_security']['seasonal_empl']
+                    
             else:
                 pass
-                
+            
+            #landowner agents
             for i in np.arange(0, 30):
                 if landowner_agents_xy[x,y,i] >= 1.0:
                     for no_agent in np.arange(1, landowner_agents_xy[x,y,i]+1):
                         (production, income_above_poverty, req_perm_farm_empl, req_seasonal_farm_empl, food_security, migration_family, landless_farmer) = agent_functions(0.8) #agent_functions(waterlogged_sev_wet[x,y])
-                        #production rice
-                        if i==0 or i==3 or i==6 or i==9:
+                      
+                        #update indicators per agent
+                        if i==0:
                             production_rice[x,y] = production_rice[x,y] + production['rice']['small']
-                        elif i==1 or i==4 or i==7 or i==10:
+                            pop_inc_below_pov[x,y] = pop_inc_below_pov[x,y] + income_above_poverty['rice_irrig']['small']  
+                            emp_perm[x,y] = emp_perm[x,y] + req_perm_farm_empl['rice']['small']
+                            emp_seasonal[x,y] = emp_seasonal[x,y] + req_seasonal_farm_empl['rice']['small']
+                            pop_food_insecure[x,y] = pop_food_insecure[x,y] + food_security['rice_irrig']['small'] 
+                            pop_migration[x,y] = pop_migration[x,y] + migration_family['rice_irrig']['small'] 
+                        elif i==1:
                             production_rice[x,y] = production_rice[x,y] + production['rice']['med']
-                        elif i==2 or i==5 or i==8 or i==11:
+                            pop_inc_below_pov[x,y] = pop_inc_below_pov[x,y] + income_above_poverty['rice_irrig']['med'] 
+                            emp_perm[x,y] = emp_perm[x,y] + req_perm_farm_empl['rice']['med']
+                            emp_seasonal[x,y] = emp_seasonal[x,y] + req_seasonal_farm_empl['rice']['med']
+                            pop_food_insecure[x,y] = pop_food_insecure[x,y] + food_security['rice_irrig']['med'] 
+                            pop_migration[x,y] = pop_migration[x,y] + migration_family['rice_irrig']['med']
+                        elif i==2:
                             production_rice[x,y] = production_rice[x,y] + production['rice']['large']
+                            pop_inc_below_pov[x,y] = pop_inc_below_pov[x,y] + income_above_poverty['rice_irrig']['large'] 
+                            emp_perm[x,y] = emp_perm[x,y] + req_perm_farm_empl['rice']['large']
+                            emp_seasonal[x,y] = emp_seasonal[x,y] + req_seasonal_farm_empl['rice']['large']
+                            pop_food_insecure[x,y] = pop_food_insecure[x,y] + food_security['rice_irrig']['large'] 
+                            pop_migration[x,y] = pop_migration[x,y] + migration_family['rice_irrig']['large'] 
+                        elif i==3:
+                            production_rice[x,y] = production_rice[x,y] + production['rice']['small']                            
+                            pop_inc_below_pov[x,y] = pop_inc_below_pov[x,y] + income_above_poverty['rice_no_irrig']['small']  
+                            emp_perm[x,y] = emp_perm[x,y] + req_perm_farm_empl['rice']['small']
+                            emp_seasonal[x,y] = emp_seasonal[x,y] + req_seasonal_farm_empl['rice']['small']
+                            pop_food_insecure[x,y] = pop_food_insecure[x,y] + food_security['rice_no_irrig']['small'] 
+                            pop_migration[x,y] = pop_migration[x,y] + migration_family['rice_no_irrig']['small'] 
+                        elif i==4:
+                            production_rice[x,y] = production_rice[x,y] + production['rice']['med']
+                            pop_inc_below_pov[x,y] = pop_inc_below_pov[x,y] + income_above_poverty['rice_no_irrig']['med'] 
+                            emp_perm[x,y] = emp_perm[x,y] + req_perm_farm_empl['rice']['med']
+                            emp_seasonal[x,y] = emp_seasonal[x,y] + req_seasonal_farm_empl['rice']['med']
+                            pop_food_insecure[x,y] = pop_food_insecure[x,y] + food_security['rice_no_irrig']['med'] 
+                            pop_migration[x,y] = pop_migration[x,y] + migration_family['rice_no_irrig']['med'] 
+                        elif i==5:
+                            production_rice[x,y] = production_rice[x,y] + production['rice']['large']
+                            pop_inc_below_pov[x,y] = pop_inc_below_pov[x,y] + income_above_poverty['rice_no_irrig']['large'] 
+                            emp_perm[x,y] = emp_perm[x,y] + req_perm_farm_empl['rice']['large']
+                            emp_seasonal[x,y] = emp_seasonal[x,y] + req_seasonal_farm_empl['rice']['large']
+                            pop_food_insecure[x,y] = pop_food_insecure[x,y] + food_security['rice_no_irrig']['large'] 
+                            pop_migration[x,y] = pop_migration[x,y] + migration_family['rice_no_irrig']['large']
+                        elif i==6: 
+                            production_rice[x,y] = production_rice[x,y] + production['rice']['small']
+                            pop_inc_below_pov[x,y] = pop_inc_below_pov[x,y] + income_above_poverty['rice_irrig_landlease']['small']
+                            emp_perm[x,y] = emp_perm[x,y] + req_perm_farm_empl['rice']['small']
+                            emp_seasonal[x,y] = emp_seasonal[x,y] + req_seasonal_farm_empl['rice']['small']
+                            pop_food_insecure[x,y] = pop_food_insecure[x,y] + food_security['rice_irrig_landlease']['small'] 
+                            pop_migration[x,y] = pop_migration[x,y] + migration_family['rice_irrig_landlease']['small'] 
+                        elif i==7:
+                            production_rice[x,y] = production_rice[x,y] + production['rice']['med']
+                            pop_inc_below_pov[x,y] = pop_inc_below_pov[x,y] + income_above_poverty['rice_irrig_landlease']['med']
+                            emp_perm[x,y] = emp_perm[x,y] + req_perm_farm_empl['rice']['med']
+                            emp_seasonal[x,y] = emp_seasonal[x,y] + req_seasonal_farm_empl['rice']['med']
+                            pop_food_insecure[x,y] = pop_food_insecure[x,y] + food_security['rice_irrig_landlease']['med'] 
+                            pop_migration[x,y] = pop_migration[x,y] + migration_family['rice_irrig_landlease']['med'] 
+
+                        elif i==8:  
+                            production_rice[x,y] = production_rice[x,y] + production['rice']['large']
+                            pop_inc_below_pov[x,y] = pop_inc_below_pov[x,y] + income_above_poverty['rice_irrig_landlease']['large']
+                            emp_perm[x,y] = emp_perm[x,y] + req_perm_farm_empl['rice']['large']
+                            emp_seasonal[x,y] = emp_seasonal[x,y] + req_seasonal_farm_empl['rice']['large']
+                            pop_food_insecure[x,y] = pop_food_insecure[x,y] + food_security['rice_irrig_landlease']['large'] 
+                            pop_migration[x,y] = pop_migration[x,y] + migration_family['rice_irrig_landlease']['large'] 
                         
-                        #production fish
-                        if i==12 or i==15:
+                        elif i==9:
+                            production_rice[x,y] = production_rice[x,y] + production['rice']['small']
+                            pop_inc_below_pov[x,y] = pop_inc_below_pov[x,y] + income_above_poverty['rice_no_irrig_landlease']['small']
+                            emp_perm[x,y] = emp_perm[x,y] + req_perm_farm_empl['rice']['small']
+                            emp_seasonal[x,y] = emp_seasonal[x,y] + req_seasonal_farm_empl['rice']['small']
+                            pop_food_insecure[x,y] = pop_food_insecure[x,y] + food_security['rice_no_irrig_landlease']['small'] 
+                            pop_migration[x,y] = pop_migration[x,y] + migration_family['rice_no_irrig_landlease']['small'] 
+
+                        elif i==10:
+                            production_rice[x,y] = production_rice[x,y] + production['rice']['med']
+                            pop_inc_below_pov[x,y] = pop_inc_below_pov[x,y] + income_above_poverty['rice_no_irrig_landlease']['med']
+                            emp_perm[x,y] = emp_perm[x,y] + req_perm_farm_empl['rice']['med']
+                            emp_seasonal[x,y] = emp_seasonal[x,y] + req_seasonal_farm_empl['rice']['med']
+                            pop_food_insecure[x,y] = pop_food_insecure[x,y] + food_security['rice_no_irrig_landlease']['med'] 
+                            pop_migration[x,y] = pop_migration[x,y] + migration_family['rice_no_irrig_landlease']['med'] 
+
+                        elif i==11:   
+                            production_rice[x,y] = production_rice[x,y] + production['rice']['large']
+                            pop_inc_below_pov[x,y] = pop_inc_below_pov[x,y] + income_above_poverty['rice_no_irrig_landlease']['large']
+                            emp_perm[x,y] = emp_perm[x,y] + req_perm_farm_empl['rice']['large']
+                            emp_seasonal[x,y] = emp_seasonal[x,y] + req_seasonal_farm_empl['rice']['large']
+                            pop_food_insecure[x,y] = pop_food_insecure[x,y] + food_security['rice_no_irrig_landlease']['large'] 
+                            pop_migration[x,y] = pop_migration[x,y] + migration_family['rice_no_irrig_landlease']['large'] 
+                            
+                        elif i==12:
                             production_rice[x,y] = production_rice[x,y] + production['fish']['small']
-                        elif i==13 or i==16:
+                            pop_inc_below_pov[x,y] = pop_inc_below_pov[x,y] + income_above_poverty['fish_landlease']['small']
+                            emp_perm[x,y] = emp_perm[x,y] + req_perm_farm_empl['fish']['small']
+                            emp_seasonal[x,y] = emp_seasonal[x,y] + req_seasonal_farm_empl['fish']['small']
+                            pop_food_insecure[x,y] = pop_food_insecure[x,y] + food_security['fish_landlease']['small'] 
+                            pop_migration[x,y] = pop_migration[x,y] + migration_family['fish_landlease']['small'] 
+                            
+                        elif i==13:  
                             production_rice[x,y] = production_rice[x,y] + production['fish']['med']
-                        elif i==14 or i==17:
-                            production_rice[x,y] = production_rice[x,y] + production['fish']['large']
+                            pop_inc_below_pov[x,y] = pop_inc_below_pov[x,y] + income_above_poverty['fish_landlease']['med']
+                            emp_perm[x,y] = emp_perm[x,y] + req_perm_farm_empl['fish']['med']
+                            emp_seasonal[x,y] = emp_seasonal[x,y] + req_seasonal_farm_empl['fish']['med']
+                            pop_food_insecure[x,y] = pop_food_insecure[x,y] + food_security['fish_landlease']['med'] 
+                            pop_migration[x,y] = pop_migration[x,y] + migration_family['fish_landlease']['med'] 
                         
+                        elif i==14:
+                            production_rice[x,y] = production_rice[x,y] + production['fish']['large']
+                            pop_inc_below_pov[x,y] = pop_inc_below_pov[x,y] + income_above_poverty['fish_landlease']['large']
+                            emp_perm[x,y] = emp_perm[x,y] + req_perm_farm_empl['fish']['large']
+                            emp_seasonal[x,y] = emp_seasonal[x,y] + req_seasonal_farm_empl['fish']['large']
+                            pop_food_insecure[x,y] = pop_food_insecure[x,y] + food_security['fish_landlease']['large'] 
+                            pop_migration[x,y] = pop_migration[x,y] + migration_family['fish_landlease']['large'] 
+
+                        elif i==15:
+                            production_rice[x,y] = production_rice[x,y] + production['fish']['small']
+                            pop_inc_below_pov[x,y] = pop_inc_below_pov[x,y] + income_above_poverty['fish_no_landlease']['small']
+                            emp_perm[x,y] = emp_perm[x,y] + req_perm_farm_empl['fish']['small']
+                            emp_seasonal[x,y] = emp_seasonal[x,y] + req_seasonal_farm_empl['fish']['small']
+                            pop_food_insecure[x,y] = pop_food_insecure[x,y] + food_security['fish_no_landlease']['small'] 
+                            pop_migration[x,y] = pop_migration[x,y] + migration_family['fish_no_landlease']['small'] 
+
+                        elif i==16:  
+                            production_rice[x,y] = production_rice[x,y] + production['fish']['med']
+                            pop_inc_below_pov[x,y] = pop_inc_below_pov[x,y] + income_above_poverty['fish_no_landlease']['med']
+                            emp_perm[x,y] = emp_perm[x,y] + req_perm_farm_empl['fish']['med']
+                            emp_seasonal[x,y] = emp_seasonal[x,y] + req_seasonal_farm_empl['fish']['med']
+                            pop_food_insecure[x,y] = pop_food_insecure[x,y] + food_security['fish_no_landlease']['med'] 
+                            pop_migration[x,y] = pop_migration[x,y] + migration_family['fish_no_landlease']['med'] 
+
+                        elif i==17:
+                            production_rice[x,y] = production_rice[x,y] + production['fish']['large']
+                            pop_inc_below_pov[x,y] = pop_inc_below_pov[x,y] + income_above_poverty['fish_no_landlease']['large']
+                            emp_perm[x,y] = emp_perm[x,y] + req_perm_farm_empl['fish']['large']
+                            emp_seasonal[x,y] = emp_seasonal[x,y] + req_seasonal_farm_empl['fish']['large']
+                            pop_food_insecure[x,y] = pop_food_insecure[x,y] + food_security['fish_no_landlease']['large'] 
+                            pop_migration[x,y] = pop_migration[x,y] + migration_family['fish_no_landlease']['large'] 
+
+                        elif i==18:       
+                            production_shrimp[x,y] = production_shrimp[x,y] + production['shrimp']['small']
+                            pop_inc_below_pov[x,y] = pop_inc_below_pov[x,y] + income_above_poverty['shrimp_landlease']['small']
+                            emp_perm[x,y] = emp_perm[x,y] + req_perm_farm_empl['shrimp']['small']
+                            emp_seasonal[x,y] = emp_seasonal[x,y] + req_seasonal_farm_empl['shrimp']['small']
+                            pop_food_insecure[x,y] = pop_food_insecure[x,y] + food_security['shrimp_landlease']['small'] 
+                            pop_migration[x,y] = pop_migration[x,y] + migration_family['shrimp_landlease']['small'] 
+                        
+                        elif i==19:
+                            production_shrimp[x,y] = production_shrimp[x,y] + production['shrimp']['med']
+                            pop_inc_below_pov[x,y] = pop_inc_below_pov[x,y] + income_above_poverty['shrimp_landlease']['med']
+                            emp_perm[x,y] = emp_perm[x,y] + req_perm_farm_empl['shrimp']['med']
+                            emp_seasonal[x,y] = emp_seasonal[x,y] + req_seasonal_farm_empl['shrimp']['med']
+                            pop_food_insecure[x,y] = pop_food_insecure[x,y] + food_security['shrimp_landlease']['med'] 
+                            pop_migration[x,y] = pop_migration[x,y] + migration_family['shrimp_landlease']['med'] 
+
+                        elif i==20:
+                            production_shrimp[x,y] = production_shrimp[x,y] + production['shrimp']['large']
+                            pop_inc_below_pov[x,y] = pop_inc_below_pov[x,y] + income_above_poverty['shrimp_landlease']['large']
+                            emp_perm[x,y] = emp_perm[x,y] + req_perm_farm_empl['shrimp']['large']
+                            emp_seasonal[x,y] = emp_seasonal[x,y] + req_seasonal_farm_empl['shrimp']['large']
+                            pop_food_insecure[x,y] = pop_food_insecure[x,y] + food_security['shrimp_landlease']['large'] 
+                            pop_migration[x,y] = pop_migration[x,y] + migration_family['shrimp_landlease']['large'] 
+
+                        elif i==21:  
+                            production_shrimp[x,y] = production_shrimp[x,y] + production['shrimp']['small']
+                            pop_inc_below_pov[x,y] = pop_inc_below_pov[x,y] + income_above_poverty['shrimp_no_landlease']['small']
+                            emp_perm[x,y] = emp_perm[x,y] + req_perm_farm_empl['shrimp']['small']
+                            emp_seasonal[x,y] = emp_seasonal[x,y] + req_seasonal_farm_empl['shrimp']['small']
+                            pop_food_insecure[x,y] = pop_food_insecure[x,y] + food_security['shrimp_no_landlease']['small'] 
+                            pop_migration[x,y] = pop_migration[x,y] + migration_family['shrimp_no_landlease']['small'] 
+                            
+                        elif i==22:  
+                            production_shrimp[x,y] = production_shrimp[x,y] + production['shrimp']['med']
+                            pop_inc_below_pov[x,y] = pop_inc_below_pov[x,y] + income_above_poverty['shrimp_no_landlease']['med']
+                            emp_perm[x,y] = emp_perm[x,y] + req_perm_farm_empl['shrimp']['med']
+                            emp_seasonal[x,y] = emp_seasonal[x,y] + req_seasonal_farm_empl['shrimp']['med']
+                            pop_food_insecure[x,y] = pop_food_insecure[x,y] + food_security['shrimp_no_landlease']['med'] 
+                            pop_migration[x,y] = pop_migration[x,y] + migration_family['shrimp_no_landlease']['med'] 
+                        
+                        elif i==23:
+                            production_shrimp[x,y] = production_shrimp[x,y] + production['shrimp']['large']
+                            pop_inc_below_pov[x,y] = pop_inc_below_pov[x,y] + income_above_poverty['shrimp_no_landlease']['large']
+                            emp_perm[x,y] = emp_perm[x,y] + req_perm_farm_empl['shrimp']['large']
+                            emp_seasonal[x,y] = emp_seasonal[x,y] + req_seasonal_farm_empl['shrimp']['large']
+                            pop_food_insecure[x,y] = pop_food_insecure[x,y] + food_security['shrimp_no_landlease']['large'] 
+                            pop_migration[x,y] = pop_migration[x,y] + migration_family['shrimp_no_landlease']['large'] 
+
+                        elif i==24:
+                            production_rice[x,y] = production_rice[x,y] + production['fish-rice']['rice']['small']
+                            production_fish[x,y] = production_fish[x,y] + production['fish-rice']['fish']['small']   
+                            pop_inc_below_pov[x,y] = pop_inc_below_pov[x,y] + income_above_poverty['fish-rice_landlease']['small']
+                            emp_perm[x,y] = emp_perm[x,y] + req_perm_farm_empl['fish-rice']['small']
+                            emp_seasonal[x,y] = emp_seasonal[x,y] + req_seasonal_farm_empl['fish-rice']['small']
+                            pop_food_insecure[x,y] = pop_food_insecure[x,y] + food_security['fish-rice_landlease']['small'] 
+                            pop_migration[x,y] = pop_migration[x,y] + migration_family['fish-rice_landlease']['small'] 
+
+                        elif i==25:                            
+                            production_rice[x,y] = production_rice[x,y] + production['fish-rice']['rice']['med']
+                            production_fish[x,y] = production_fish[x,y] + production['fish-rice']['fish']['med']
+                            pop_inc_below_pov[x,y] = pop_inc_below_pov[x,y] + income_above_poverty['fish-rice_landlease']['med']
+                            emp_perm[x,y] = emp_perm[x,y] + req_perm_farm_empl['fish-rice']['med']
+                            emp_seasonal[x,y] = emp_seasonal[x,y] + req_seasonal_farm_empl['fish-rice']['med']
+                            pop_food_insecure[x,y] = pop_food_insecure[x,y] + food_security['fish-rice_landlease']['med'] 
+                            pop_migration[x,y] = pop_migration[x,y] + migration_family['fish-rice_landlease']['med'] 
+                            
+                            
+                        elif i==26:
+                            production_rice[x,y] = production_rice[x,y] + production['fish-rice']['rice']['large']
+                            production_fish[x,y] = production_fish[x,y] + production['fish-rice']['fish']['large']
+                            pop_inc_below_pov[x,y] = pop_inc_below_pov[x,y] + income_above_poverty['fish-rice_landlease']['large']
+                            emp_perm[x,y] = emp_perm[x,y] + req_perm_farm_empl['fish-rice']['large']
+                            emp_seasonal[x,y] = emp_seasonal[x,y] + req_seasonal_farm_empl['fish-rice']['large']
+                            pop_food_insecure[x,y] = pop_food_insecure[x,y] + food_security['fish-rice_landlease']['large'] 
+                            pop_migration[x,y] = pop_migration[x,y] + migration_family['fish-rice_landlease']['large'] 
+                            
+                        elif i==27:                            
+                            production_rice[x,y] = production_rice[x,y] + production['fish-rice']['rice']['small']
+                            production_fish[x,y] = production_fish[x,y] + production['fish-rice']['fish']['small']    
+                            pop_inc_below_pov[x,y] = pop_inc_below_pov[x,y] + income_above_poverty['fish-rice_no_landlease']['small']
+                            emp_perm[x,y] = emp_perm[x,y] + req_perm_farm_empl['fish-rice']['small']
+                            emp_seasonal[x,y] = emp_seasonal[x,y] + req_seasonal_farm_empl['fish-rice']['small']
+                            pop_food_insecure[x,y] = pop_food_insecure[x,y] + food_security['fish-rice_no_landlease']['small'] 
+                            pop_migration[x,y] = pop_migration[x,y] + migration_family['fish-rice_no_landlease']['small'] 
+                            
+                        elif i==28:
+                            production_rice[x,y] = production_rice[x,y] + production['fish-rice']['rice']['med']
+                            production_fish[x,y] = production_fish[x,y] + production['fish-rice']['fish']['med']
+                            pop_inc_below_pov[x,y] = pop_inc_below_pov[x,y] + income_above_poverty['fish-rice_no_landlease']['med']
+                            emp_perm[x,y] = emp_perm[x,y] + req_perm_farm_empl['fish-rice']['med']
+                            emp_seasonal[x,y] = emp_seasonal[x,y] + req_seasonal_farm_empl['fish-rice']['med']
+                            pop_food_insecure[x,y] = pop_food_insecure[x,y] + food_security['fish-rice_no_landlease']['med'] 
+                            pop_migration[x,y] = pop_migration[x,y] + migration_family['fish-rice_no_landlease']['med'] 
+                            
+                        elif i==29:
+                            production_rice[x,y] = production_rice[x,y] + production['fish-rice']['rice']['large']
+                            production_fish[x,y] = production_fish[x,y] + production['fish-rice']['fish']['large']
+                            pop_inc_below_pov[x,y] = pop_inc_below_pov[x,y] + income_above_poverty['fish-rice_no_landlease']['large']
+                            emp_perm[x,y] = emp_perm[x,y] + req_perm_farm_empl['fish-rice']['large']
+                            emp_seasonal[x,y] = emp_seasonal[x,y] + req_seasonal_farm_empl['fish-rice']['large']
+                            pop_food_insecure[x,y] = pop_food_insecure[x,y] + food_security['fish-rice_no_landlease']['large'] 
+                            pop_migration[x,y] = pop_migration[x,y] + migration_family['fish-rice_no_landlease']['large'] 
+                     
                 else:
                     pass
+            
+            if population > 1.0:
+                pop_inc_below_pov[x,y] = (1.0 - (pop_inc_below_pov[x,y] / population)) * 100.0  
+                pop_food_insecure[x,y] = (1.0 - (pop_food_insecure[x,y] / population)) * 100.0   
+            else:
+                pass
 
-for year in np.arange(startyear, endyear+1,1):                    
+            if landless_agents_perm[x,y] > 1.0:            
+                if landless_agents_perm[x,y]*(42.0*5.0) < emp_perm[x,y] * 42.0 * 5.0 :
+                    landless_migration_perm = 1.0
+                else:
+                    landless_migration_perm = (emp_perm[x,y] * 42.0 * 5.0) / (landless_agents_perm[x,y]*(42.0*5.0))
+            else: 
+                landless_migration_perm = 0.0 
+                
+            if landless_agents_seas[x,y] > 1.0:              
+                if landless_agents_seas[x,y]*(42.0*5.0) < emp_seasonal[x,y] * 42.0 * 5.0 :
+                    landless_migration_seas = 1.0
+                else:
+                    landless_migration_seas = (emp_seasonal[x,y] * 42.0 * 5.0) / (landless_agents_seas[x,y]*(42.0*5.0))
+            else: 
+                landless_migration_seas = 0.0 
+
+            pop_migration[x,y] = np.nansum([pop_migration[x,y], (landless_migration_perm*landless_agents_perm[x,y] + landless_migration_seas*landless_agents_seas[x,y])*4.15])
+
+    #Write and save .csv                 
     #update dataframe
     #df = pd.concat([df.copy(),pd.DataFrame([{'Year':year, 'Indicator':'gross_income_rice_small', 'Polder':0, 'Value':np.mean(farm_gross_income_rice_small[polmat!=0])}])])
     for ind in np.arange(0, len(ind_name_list)):
         for p in np.arange(1, no_polder+1):
             df = pd.concat( [df.copy(),pd.DataFrame([{'Year':year, 'Indicator': ind_name_list[ind], 'Polder':p, 'Value': np.mean(ind_value_list[ind][polmat==p]) }])] )
 
-    #filename
-    filename_gross_income=r'p:\11208012-011-nabaripoma\Model\Python\results\real\gross_income\gross_income_rice_' + str(year) + '.png'
-        
-    # if plot:
-    #     #plot
-    #     plt.rcParams["figure.figsize"] = [20, 20]
-    #     plt.matshow(farm_gross_income_rice_small)
-    #     plt.title('Gross income for rice in small farms')
-    #     plt.colorbar()
-    #     plt.suptitle(year, fontsize=16, x=0.5)
-    #     plt.tight_layout()
-    #     plt.savefig(filename_gross_income, format='png', bbox_inches='tight', dpi=300)
-    #     plt.show()
-    #     plt.close()
-    
-    # if raster:
-    #     if year == startyear or year == endyear: 
-    #         #Write raster file (socio-econnomics)
-    #         with rasterio.open(r'p:\11208012-011-nabaripoma\Model\Python\results\real\gross_income\geotif\gross_income_rice_' + str(year) + '.tif', 'w', **ras_meta) as dst:
-    #             dst.write(farm_gross_income_rice_small, indexes=1) #gross income  
-           
-    #update loop
-    i=i+1
-
 #Save .csv
 df.to_csv(r'p:\11208012-011-nabaripoma\Model\Python\results\real\csv\model_output.csv', index=False, float_format='%.2f')
+

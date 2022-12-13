@@ -26,9 +26,9 @@ def agent_functions(wlog_sev):
     #INIT
     #Agent attributes
     farmsize = {
-    "small": np.random.normal(loc=0.51, scale=0.158),
-    "med": 2.02,
-    "large": 6.07
+    "small": np.random.normal(loc=0.51, scale=(1.01-0.51)/3.0),
+    "med": np.random.normal(loc=2.02, scale=(3.03-2.02)/3.0),
+    "large": np.random.normal(loc=6.07, scale=(6.07-3.04)/3.0)
     }
     
     tot_pop_agr = {
@@ -39,23 +39,23 @@ def agent_functions(wlog_sev):
     }
     
     householdsize = {
-    "small": 4.15,
-    "med": 4.15,
-    "large": 4.15,
-    "landless": 4.15
+    "small": np.random.normal(loc=4.15, scale=(4.15-1.0)/3.0),
+    "med": np.random.normal(loc=4.15, scale=(4.15-1.0)/3.0),
+    "large": np.random.normal(loc=4.15, scale=(4.15-1.0)/3.0),
+    "landless": np.random.normal(loc=4.15, scale=(4.15-1.0)/3.0)
     }
 
     fam_member_12 = {
-    "small": 1.0375,
-    "med": 1.0375,
-    "large": 1.0375,
-    "landless": 1.0375
+    "small": np.random.normal(loc=1.0375, scale=1.0375/3.0),
+    "med": np.random.normal(loc=1.0375, scale=1.0375/3.0),
+    "large": np.random.normal(loc=1.0375, scale=1.0375/3.0),
+    "landless": np.random.normal(loc=1.0375, scale=1.0375/3.0)
     }
     
     leasedarea = {
-    "small": 0.1,
-    "med": 0.3,
-    "large": 0.4
+    "small": np.random.normal(loc=0.1, scale=(0.1-0)/3.0),
+    "med": np.random.normal(loc=0.3, scale=(0.3-0)/3.0),
+    "large": np.random.normal(loc=0.4, scale=(0.4-0)/3.0)
     }
          
     croppping_pattern = {
@@ -377,12 +377,20 @@ def agent_functions(wlog_sev):
             "med": 0,
             "large": 0
             },
-        "fish-rice":
-            {
-            "small": 0,
-            "med": 0,
-            "large": 0
-            }
+        "fish-rice": {
+            "rice":
+                {
+                "small": 0,
+                "med": 0,
+                "large": 0
+                },
+            "fish":
+                {
+                "small": 0,
+                "med": 0,
+                "large": 0
+                }
+            }                          
         }
         
     #Farm gross income
@@ -734,6 +742,12 @@ def agent_functions(wlog_sev):
             "small": 0,
             "med": 0,
             "large": 0
+            },
+        "rice-fish":
+            {
+            "small": 0,
+            "med": 0,
+            "large": 0
             }
         }
 
@@ -752,6 +766,12 @@ def agent_functions(wlog_sev):
             "large": 0,
             },
         "shrimp":
+            {
+            "small": 0,
+            "med": 0,
+            "large": 0
+            },
+        "rice-fish":
             {
             "small": 0,
             "med": 0,
@@ -775,12 +795,7 @@ def agent_functions(wlog_sev):
             {
             "perm_empl": 0,
             "seasonal_empl": 0,
-            },
-        "migration_fixed":
-            {
-            "perm_empl": False,
-            "seasonal_empl": False,
-            },
+            }
         }
 
     #Migration - family member
@@ -847,6 +862,7 @@ def agent_functions(wlog_sev):
             }
         } 
 
+       
     #Aggregate indicators       
     #Production of rice, fish and shrimp
     production = {  
@@ -940,10 +956,16 @@ def agent_functions(wlog_sev):
                 else:
                     farm_prod_food[crop][hh] = subs_food_cons[crop][hh]/1000.0    
             elif crop == 'fish-rice':
+                #Rice
                 if farm_prod['rice'] * farmsize[hh] > subs_food_cons['rice'][hh]/1000.0  :
-                    farm_prod_food[crop][hh] = subs_food_cons['rice'][hh]
+                    farm_prod_food[crop]['rice'][hh] = subs_food_cons['rice'][hh]
                 else:
-                    farm_prod_food[crop][hh] = farm_prod['rice'] * farmsize[hh]
+                    farm_prod_food[crop]['rice'][hh] = farm_prod['rice'] * farmsize[hh]
+                #Fish
+                if subs_food_cons['fish'][hh]/1000.0 > farm_prod_per_hh['fish'][hh]/2.0:
+                    farm_prod_food[crop]['fish'][hh] = farm_prod_per_hh['fish'][hh]/2.0
+                else:
+                    farm_prod_food[crop]['fish'][hh] = subs_food_cons['fish'][hh]/1000.0
             
     #Farm gross income
     for hh in ['small', 'med', 'large']:
@@ -1012,11 +1034,36 @@ def agent_functions(wlog_sev):
                 else:
                     food_security[crop][hh] = True   
             else:
-                if (farm_prod_food['fish-rice'][hh] < subs_food_cons['rice'][hh] / 1000.0) and (income_above_poverty[crop][hh] == False):
+                if (farm_prod_food['fish-rice']['rice'][hh] < subs_food_cons['rice'][hh] / 1000.0) and (income_above_poverty[crop][hh] == False):
                     food_security[crop][hh] = False
                 else:
                     food_security[crop][hh] = True
-    
+
+    #Required hired permanent farm employment
+    for hh in ['small', 'med', 'large']:
+        for crop in ['rice', 'fish', 'shrimp', 'rice-fish']:
+            if (householdsize[hh] - fam_member_12[hh] - migrated_hh_members[hh]) > farmempl["family_perm"][crop][hh]:
+                req_perm_farm_empl[crop][hh] = farmempl["hired_perm"][crop][hh]
+            else:
+                if (householdsize[hh] - fam_member_12[hh] - migrated_hh_members[hh]) > 0.0:
+                    req_perm_farm_empl[crop][hh] = farmempl["hired_perm"][crop][hh] + (householdsize[hh] - fam_member_12[hh] - migrated_hh_members[hh])
+                else:
+                    req_perm_farm_empl[crop][hh] = farmempl["hired_perm"][crop][hh] + farmempl["family_perm"][crop][hh]
+             
+    #Required hired seasonal farm employment
+    for hh in ['small', 'med', 'large']:
+        for crop in ['rice', 'fish', 'shrimp', 'rice-fish']:
+            req_seasonal_farm_empl[crop][hh] = farmempl["hired_temp"][crop][hh] / temp_empl[hh]
+
+
+    #Migration - family member
+    for hh in ['small', 'med', 'large']:
+        for crop in ["rice_irrig", "rice_no_irrig", "rice_irrig_landlease", "rice_no_irrig_landlease", "fish_landlease", "fish_no_landlease", "shrimp_landlease", "shrimp_no_landlease", "fish-rice_landlease", "fish-rice_no_landlease"]:             
+            if income_above_poverty[crop][hh] == False and food_security[crop][hh] == False and ((householdsize[hh] - fam_member_12[hh])>2):
+                migration_family[crop][hh] = True
+            else:
+                migration_family[crop][hh] = False
+   
     #Landless farmers
     for attr in ["hh_income", "income_above_poverty", "food_security"]:
         for emp in ["perm_empl", "seasonal_empl"]:
@@ -1028,32 +1075,8 @@ def agent_functions(wlog_sev):
             elif attr == "income_above_poverty":            
                 landless_farmer[attr][emp] = landless_farmer["hh_income"][emp] > (householdsize["landless"] * poverty_line * 365.0)
             elif attr == "food_security":            
-                landless_farmer[attr][emp] = landless_farmer["income_above_poverty"][emp]         
+                landless_farmer[attr][emp] = landless_farmer["income_above_poverty"][emp]     
 
-    #Required hired permanent farm employment
-    for hh in ['small', 'med', 'large']:
-        for crop in ['rice', 'fish', 'shrimp']:
-            if (householdsize[hh] - fam_member_12[hh] - migrated_hh_members[hh]) > farmempl["family_perm"][crop][hh]:
-                req_perm_farm_empl[crop][hh] = farmempl["hired_perm"][crop][hh]
-            else:
-                if (householdsize[hh] - fam_member_12[hh] - migrated_hh_members[hh]) > 0.0:
-                    req_perm_farm_empl[crop][hh] = farmempl["hired_perm"][crop][hh] + (householdsize[hh] - fam_member_12[hh] - migrated_hh_members[hh])
-                else:
-                    req_perm_farm_empl[crop][hh] = farmempl["hired_perm"][crop][hh] + farmempl["family_perm"][crop][hh]
-             
-    #Required hired seasonal farm employment
-    for hh in ['small', 'med', 'large']:
-        for crop in ['rice', 'fish', 'shrimp']:
-            req_seasonal_farm_empl[crop][hh] = farmempl["hired_temp"][crop][hh] / temp_empl[hh]
-
-
-    #Migration - family member
-    for hh in ['small', 'med', 'large']:
-        for crop in ["rice_irrig", "rice_no_irrig", "rice_irrig_landlease", "rice_no_irrig_landlease", "fish_landlease", "fish_no_landlease", "shrimp_landlease", "shrimp_no_landlease", "fish-rice_landlease", "fish-rice_no_landlease"]:             
-            if income_above_poverty[crop][hh] == False and food_security[crop][hh] == False and ((householdsize[hh] - fam_member_12[hh])>2):
-                migration_family[crop][hh] = True
-            else:
-                migration_family[crop][hh] = False
 
 #%%
     #Aggregate indicators
