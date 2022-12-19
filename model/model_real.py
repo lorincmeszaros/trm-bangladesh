@@ -1,7 +1,7 @@
 # -*- coding: utf-8 -*-
 """
 Model to assess the combined bio-physical and behavioural developments
-along an imaginary river stretch in the coastal zone of Bangladesh.
+along a river stretch in the coastal zone of Bangladesh.
 This model has been implemented in Python.
 This demontrsation has been developed as part of the 2022 research project: 
 'Integrated Assessment Modelling of Tidal River Management in Bangladesh'.
@@ -19,6 +19,7 @@ import rasterio
 import pandas as pd
 from household_agents import agent_functions 
 
+#UserSettableParameters
 model_params = {
     "slr2100": 1, #UserSettableParameter
     "subsidence": 0.005, #UserSettableParameter
@@ -26,11 +27,17 @@ model_params = {
     "trmsedrate": 0.4, #UserSettableParameter
 }
 
+#Strategies (1 - Business as Usual, 2 - nabaripoma)
+strategy=2
+
 #Options
-plot = False
-raster = False
+plot = True
+raster = True
 
 #%%INITIALIZE
+
+print('******** Initialization starts ********')
+
 #Model parameters
 slr2100 = model_params['slr2100']
 subsidence = model_params['subsidence']
@@ -46,15 +53,6 @@ year = startyear
 msl = 0.00
 
 #Read grid maps   
-# Read the elevation (topography/bathymetry)
-elev_raster = rioxarray.open_rasterio(r'p:\11208012-011-nabaripoma\Data\elevation_fabdem.tif')
-elevmat = elev_raster.to_numpy().squeeze()
-
-#plot
-plt.matshow(elevmat)
-plt.title('elevation')
-plt.colorbar()
-plt.show()
 
 #Read rater metadata
 with rasterio.open(r'p:\11208012-011-nabaripoma\Data\elevation.tif') as src:
@@ -67,6 +65,17 @@ rsmat = rs_raster.to_numpy().squeeze()
 #plot
 plt.matshow(rsmat)
 plt.title('location of rivers and sea')
+plt.colorbar()
+plt.show()
+
+# Read the elevation (topography/bathymetry)
+elev_raster = rioxarray.open_rasterio(r'p:\11208012-011-nabaripoma\Data\elevation_fabdem.tif')
+elevmat = elev_raster.to_numpy().squeeze()
+elevmat[rsmat == 1] = -5.0 - 1e-6 * np.indices(np.shape(elevmat))[0][rsmat == 1] #River bathymetry is -5 m
+
+#plot
+plt.matshow(elevmat)
+plt.title('elevation')
 plt.colorbar()
 plt.show()
 
@@ -260,7 +269,7 @@ is_land = rsmat == 0
 
 #%%RUN CALCULATION (Loop from 2022 to 2100)
 #initialize arrays and lists
-df = pd.DataFrame(columns=['Year', 'Indicator', 'Polder','Value'])
+df = pd.DataFrame(columns=['Year', 'Strategy', 'Indicator', 'Polder','Value'])
 
 #loop over timesteps
 is_TRM = False
@@ -286,12 +295,13 @@ for year in np.arange(startyear, endyear+1,1):
     #recalculate based on new elevation
     pcrelev = pcr.numpy2pcr(pcr.Scalar, elevmat, -999.)
     #create ldd
-    pcrldd = pcr.lddcreate(pcrelev,2*trmsedrate,1.0e+12,1.0e+12,1.0e+12)
+    pcrldd = pcr.lddcreate(pcrelev,1.0e+12,1.0e+12,1.0e+12,1.0e+12)
+    lddmat = pcr.pcr2numpy(pcrldd,-999)
 
     #calculate distance to river over ldd
     pcrdist2riv = pcr.ldddist(pcrldd,pcrriv,1.)*cellsize
     dist2rivmat = pcr.pcr2numpy(pcrdist2riv,-999)
-       
+
     # #calculate distance to sea over ldd
     # pcrdist2sea = pcr.ldddist(pcrldd,pcrsea,1.)
     # dist2seamat = pcr.pcr2numpy(pcrdist2sea,-999)
@@ -302,7 +312,8 @@ for year in np.arange(startyear, endyear+1,1):
     
 	#Create subcatchments above the river cells (pcr.subcatchment(ldd, river cells)
     pcrsub = pcr.subcatchment(pcrldd, pcr.nominal(pcrrivid))
-    submat = pcr.pcr2numpy(pcrsub,-999)
+    pcrsubclump = pcr.clump(pcrsub)
+    submat = pcr.pcr2numpy(pcrsubclump,-999)
 
     #River bed level
     bedlevel=np.full_like(elevmat, -999)
@@ -327,21 +338,21 @@ for year in np.arange(startyear, endyear+1,1):
     lt_dry= np.maximum((msl + wl_dry - 0.5 * tidalrange), polderbedlevelmat)
     
     #Upstream flow - wet season water level
-    wl_wet=0.3
+    wl_wet=1.0
     #Wet low tide level
     lt_wet= np.maximum((msl + wl_wet - 0.5 * tidalrange), polderbedlevelmat)
     
     #water logging - patches with gradient less than drainhead to low tide
-    gradient_dry=np.full(np.shape(elevmat),-999.0)
-    gradient_wet=np.full(np.shape(elevmat),-999.0)
-    gradient_dry[is_land] = (elevmat[is_land] - lt_dry[is_land]) / dist2rivmat[is_land]
-    gradient_wet[is_land] = (elevmat[is_land] - lt_wet[is_land]) / dist2rivmat[is_land]
+    gradient_dry=np.full(np.shape(elevmat),np.nan)
+    gradient_wet=np.full(np.shape(elevmat),np.nan)
+    gradient_dry[is_polder] = (elevmat[is_polder] - lt_dry[is_polder]) / dist2rivmat[is_polder]
+    gradient_wet[is_polder] = (elevmat[is_polder] - lt_wet[is_polder]) / dist2rivmat[is_polder]
        
     #Waterlogging
     is_waterlogged_dry = np.full(np.shape(elevmat),False)    
     is_waterlogged_wet = np.full(np.shape(elevmat),False) 
-    is_waterlogged_dry[(is_land) & (gradient_dry < mindraingrad)] = True    
-    is_waterlogged_wet[(is_land) & (gradient_wet < mindraingrad)] = True  
+    is_waterlogged_dry[(is_polder) & (gradient_dry < mindraingrad)] = True    
+    is_waterlogged_wet[(is_polder) & (gradient_wet < mindraingrad)] = True  
     
     #dry
     waterlogged_sev_dry = 1 - (gradient_dry / mindraingrad)
@@ -357,6 +368,9 @@ for year in np.arange(startyear, endyear+1,1):
     is_TRM=False
         
     ht_wet= msl + wl_wet + 0.5 * tidalrange #calculate for each cell the high tide level of the nearest cell in the wet season
+
+    #create ldd
+    pcrldd = pcr.lddcreate(pcrelev,2*trmsedrate,1.0e+12,1.0e+12,1.0e+12)
 
     p_id_max = 0
     bheel_id_max = 0
@@ -439,15 +453,16 @@ for year in np.arange(startyear, endyear+1,1):
         elevmat = elevmat + trmlevelyear1
         trmlevelyear1=np.full(np.shape(elevmat), 0)
         is_TRM_prev = True
-         
+    
+    #PLOT
     #filename
     filename_waterlogging=r'p:\11208012-011-nabaripoma\Model\Python\results\real\waterlogging\waterlogging_' + str(year) + '.png'
 
     if plot:
         #plot
-        plt.rcParams["figure.figsize"] = [20, 20]
+        plt.rcParams["figure.figsize"] = [22, 10]
         f, (ax1, ax2, ax3) = plt.subplots(1,3, sharex=True, sharey=True)
-        f1=ax1.matshow(elevmat, vmin=-1, vmax = 1)
+        f1=ax1.matshow(elevmat, vmin=-1, vmax = 10)
         ax1.set_title('elevation')
         plt.colorbar(f1,ax=ax1)
         f2=ax2.matshow(waterlogged_sev_dry, vmin=0, vmax = 1)
@@ -488,7 +503,8 @@ for year in np.arange(startyear, endyear+1,1):
     pop_food_insecure = np.zeros(np.shape(elevmat))
     pop_migration = np.zeros(np.shape(elevmat))
     
-    ind_name_list = ['production_rice', 'production_fish', 'production_shrimp', 'pop_inc_below_pov', 'emp_perm', 'emp_seasonal', 'pop_food_insecure', 'pop_migration']
+    # ind_name_list = ['production_rice', 'production_fish', 'production_shrimp', 'pop_inc_below_pov', 'emp_perm', 'emp_seasonal', 'pop_food_insecure', 'pop_migration']
+    ind_name_list = [1, 2, 3, 4, 5, 6, 7, 8]
     ind_value_list= [production_rice, production_fish, production_shrimp, pop_inc_below_pov, emp_perm, emp_seasonal, pop_food_insecure, pop_migration]
     
     #i=0  rice_irrig_small                 #i=1  rice_irrig_med               #i=2  rice_irrig_large
@@ -804,7 +820,7 @@ for year in np.arange(startyear, endyear+1,1):
     #df = pd.concat([df.copy(),pd.DataFrame([{'Year':year, 'Indicator':'gross_income_rice_small', 'Polder':0, 'Value':np.mean(farm_gross_income_rice_small[polmat!=0])}])])
     for ind in np.arange(0, len(ind_name_list)):
         for p in np.arange(1, no_polder+1):
-            df = pd.concat( [df.copy(),pd.DataFrame([{'Year':year, 'Indicator': ind_name_list[ind], 'Polder':p, 'Value': np.mean(ind_value_list[ind][polmat==p]) }])] )
+            df = pd.concat( [df.copy(),pd.DataFrame([{'Year':year, 'Strategy':strategy, 'Indicator': ind_name_list[ind], 'Polder':p, 'Value': np.mean(ind_value_list[ind][polmat==p]) }])] )
 
 #Save .csv
 df.to_csv(r'p:\11208012-011-nabaripoma\Model\Python\results\real\csv\model_output.csv', index=False, float_format='%.2f')

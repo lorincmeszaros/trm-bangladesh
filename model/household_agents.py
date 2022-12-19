@@ -102,7 +102,7 @@ def agent_functions(wlog_sev):
 
     #Irrigation % of farms
     irrigation_perc = {
-    "small": 67.0/100.,
+    "small": 11.3/100.,
     "med": 74.6/100.,
     "large": 70.30/100.
     }
@@ -262,7 +262,7 @@ def agent_functions(wlog_sev):
     poverty_line = 192.
 
     #Days seasonal employment landless
-    days_seas_emp_landless = 54.
+    days_seas_emp_landless = np.random.normal(loc=54., scale=(0.3*54.))
     
     #People working in landless housseholds
     peop_work_landless = 50./100.
