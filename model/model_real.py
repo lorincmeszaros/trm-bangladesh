@@ -312,8 +312,6 @@ for year in np.arange(startyear, endyear+1,1):
     
 	#Create subcatchments above the river cells (pcr.subcatchment(ldd, river cells)
     pcrsub = pcr.subcatchment(pcrldd, pcr.nominal(pcrrivid))
-    pcrsubclump = pcr.clump(pcrsub)
-    submat = pcr.pcr2numpy(pcrsubclump,-999)
 
     #River bed level
     bedlevel=np.full_like(elevmat, -999)
