@@ -71,6 +71,7 @@ dependencies:
   - hdf5=1.12.2=nompi_h2a0e4a3_100
   - icu=70.1=h0e60522_0
   - idna=3.3=pyhd3eb1b0_0
+  - imageio=2.22.4=pyhfa7a67d_1
   - imagesize=1.3.0=pyhd3eb1b0_0
   - importlib-metadata=4.11.3=py39haa95532_0
   - importlib_metadata=4.11.3=hd3eb1b0_0
@@ -155,7 +156,7 @@ dependencies:
   - numpy=1.23.4=py39hbccbffa_1
   - numpydoc=1.2=pyhd3eb1b0_0
   - openjpeg=2.5.0=hc9384bd_1
-  - openssl=1.1.1s=hcfcfb64_0
+  - openssl=1.1.1s=hcfcfb64_1
   - packaging=21.3=pyhd3eb1b0_0
   - pandas=1.5.1=py39h2ba5b7c_1
   - pandocfilters=1.5.0=pyhd3eb1b0_0
@@ -193,6 +194,7 @@ dependencies:
   - pynacl=1.4.0=py39hbd8134f_1
   - pyopenssl=22.0.0=pyhd3eb1b0_0
   - pyparsing=3.0.4=pyhd3eb1b0_0
+  - pyproj=3.4.0=py39h9727d73_2
   - pyqt=5.15.7=py39hb08f45d_0
   - pyqt5-sip=12.11.0=py39h415ef7b_0
   - pyqtwebengine=5.15.7=py39hb08f45d_0
@@ -222,8 +224,10 @@ dependencies:
   - qtpy=2.3.0=pyhd8ed1ab_0
   - rasterio=1.3.3=py39h128678e_3
   - requests=2.27.1=pyhd3eb1b0_0
+  - rioxarray=0.13.1=pyhd8ed1ab_0
   - rope=0.22.0=pyhd3eb1b0_0
   - rtree=0.9.7=py39h2eaa2aa_1
+  - scipy=1.9.3=py39hfbf2dce_2
   - setuptools=65.5.1=pyhd8ed1ab_0
   - sip=6.6.2=py39h415ef7b_0
   - six=1.16.0=pyhd3eb1b0_1

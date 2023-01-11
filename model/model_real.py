@@ -71,7 +71,7 @@ plt.show()
 # Read the elevation (topography/bathymetry)
 elev_raster = rioxarray.open_rasterio(r'p:\11208012-011-nabaripoma\Data\elevation_fabdem.tif')
 elevmat = elev_raster.to_numpy().squeeze()
-elevmat[rsmat == 1] = -5.0 - 1e-6 * np.indices(np.shape(elevmat))[0][rsmat == 1] #River bathymetry is -5 m
+elevmat[rsmat == 1] = -5.0 - 1e-6 * np.indices(np.shape(elevmat))[0][rsmat == 1] #River bathymetry is -5 m + gradient
 
 #plot
 plt.matshow(elevmat)
@@ -357,8 +357,8 @@ for year in np.arange(startyear, endyear+1,1):
     lt_wet= np.maximum((msl + wl_wet - 0.5 * tidalrange), polderbedlevelmat)
     
     #water logging - patches with gradient less than drainhead to low tide
-    gradient_dry=np.full(np.shape(elevmat),np.nan)
-    gradient_wet=np.full(np.shape(elevmat),np.nan)
+    gradient_dry=np.full(np.shape(elevmat),-999.0)
+    gradient_wet=np.full(np.shape(elevmat),-999.0)
     gradient_dry[is_polder] = (elevmat[is_polder] - lt_dry[is_polder]) / dist2rivmat[is_polder]
     gradient_wet[is_polder] = (elevmat[is_polder] - lt_wet[is_polder]) / dist2rivmat[is_polder]
     
@@ -377,11 +377,17 @@ for year in np.arange(startyear, endyear+1,1):
     waterlogged_sev_dry = 1. - (gradient_dry / mindraingrad)
     waterlogged_sev_dry[waterlogged_sev_dry < 0.] = 0.
     waterlogged_sev_dry[waterlogged_sev_dry > 1.] = 1.
+    #Masked array for plotting
+    waterlogged_sev_dry_mask = np.full(np.shape(elevmat),np.nan) 
+    waterlogged_sev_dry_mask[is_polder] = waterlogged_sev_dry[is_polder]
     
     #wet
     waterlogged_sev_wet = 1. - (gradient_wet / mindraingrad)
     waterlogged_sev_wet[waterlogged_sev_wet < 0.] = 0.
     waterlogged_sev_wet[waterlogged_sev_wet > 1.] = 1.
+    #Masked array for plotting
+    waterlogged_sev_wet_mask = np.full(np.shape(elevmat),np.nan) 
+    waterlogged_sev_wet_mask[is_polder] = waterlogged_sev_wet[is_polder]
 
     #TRM
     is_TRM=False
@@ -462,6 +468,7 @@ for year in np.arange(startyear, endyear+1,1):
     
         trmlevelyear1 = np.maximum(0.0, np.minimum(pitelev + trmsedrate, h_wl) - elevmat) * bheel_mask
         trmlevelyear2 = np.maximum(0.0, np.minimum(pitelev + trmlevelyear1 + trmsedrate, h_wl) - elevmat) * bheel_mask
+
         plt.matshow(trmlevelyear1)
         plt.colorbar()
         plt.title('trmlevel_polder_' + str(p_id) + '_' +  str(year))
