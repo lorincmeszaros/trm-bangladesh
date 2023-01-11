@@ -942,7 +942,7 @@ def agent_functions(wlog_sev):
     for hh in ['small', 'med', 'large']:
         for crop in ['rice', 'fish', 'shrimp']:
             if hh == 'small' and crop == 'rice':
-                if farm_prod_market[crop][hh] - (subs_food_cons[crop][hh]/1000.0) < 0:
+                if farm_prod_per_hh[crop][hh] - (subs_food_cons[crop][hh]/1000.0) < 0:
                     farm_prod_market[crop][hh] = 0
             else:
                 farm_prod_market[crop][hh] = farm_prod_per_hh[crop][hh] - (subs_food_cons[crop][hh]/1000.0)
@@ -958,7 +958,7 @@ def agent_functions(wlog_sev):
             elif crop == 'fish-rice':
                 #Rice
                 if farm_prod['rice'] * farmsize[hh] > subs_food_cons['rice'][hh]/1000.0  :
-                    farm_prod_food[crop]['rice'][hh] = subs_food_cons['rice'][hh]
+                    farm_prod_food[crop]['rice'][hh] = subs_food_cons['rice'][hh]/1000.0
                 else:
                     farm_prod_food[crop]['rice'][hh] = farm_prod['rice'] * farmsize[hh]
                 #Fish
@@ -1084,6 +1084,6 @@ def agent_functions(wlog_sev):
     #Production of rice, fish and shrimp
     for hh in ['small', 'med', 'large']:
         for crop in ['rice', 'fish', 'shrimp']:
-            production[crop][hh] = farm_prod_market[crop][hh] + farm_prod_food[crop][hh]
+            production[crop][hh] = farm_prod_per_hh[crop][hh]
     
     return production, income_above_poverty, req_perm_farm_empl, req_seasonal_farm_empl, food_security, migration_family, landless_farmer 
