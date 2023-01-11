@@ -28,7 +28,7 @@ model_params = {
 }
 
 #Strategies (1 - Business as Usual, 2 - nabaripoma)
-strategy=1
+strategy=2
 
 #Options
 plot = True
@@ -396,7 +396,7 @@ for year in np.arange(startyear, endyear+1,1):
         
     ht_wet= msl + wl_wet + 0.5 * tidalrange #calculate for each cell the high tide level of the nearest cell in the wet season
 
-    if strategy == 1:
+    if strategy == 2:
         #create ldd
         pcrldd = pcr.lddcreate(pcrelev,2*trmsedrate,1.0e+12,1.0e+12,1.0e+12)
     
