@@ -515,11 +515,11 @@ for year in np.arange(startyear, endyear+1,1):
             with rasterio.open(r'p:\11208012-011-nabaripoma\Model\Python\results\real\waterlogging\geotif\waterlogging_dry_strategy' + str(strategy) + '_' + str(year) + '.tif', 'w', **ras_meta) as dst:
                 dst.write(waterlogged_sev_dry_mask, indexes=1) #Dry
                 
-            with rasterio.open(r'p:\11208012-011-nabaripoma\Model\Python\results\real\waterlogging\geotif\waterlogging_wet_strategy_' + str(strategy) + '_' + str(year) + '.tif', 'w', **ras_meta) as dst:
+            with rasterio.open(r'p:\11208012-011-nabaripoma\Model\Python\results\real\waterlogging\geotif\waterlogging_wet_strategy' + str(strategy) + '_' + str(year) + '.tif', 'w', **ras_meta) as dst:
                 dst.write(waterlogged_sev_wet_mask, indexes=1) #Wet   
             
             #Write raster file (elevation)   
-            with rasterio.open(r'p:\11208012-011-nabaripoma\Model\Python\results\real\elevation\geotif\elevation_strategy_' + str(strategy) + '_' + str(year) + '.tif', 'w', **ras_meta) as dst:
+            with rasterio.open(r'p:\11208012-011-nabaripoma\Model\Python\results\real\elevation\geotif\elevation_strategy' + str(strategy) + '_' + str(year) + '.tif', 'w', **ras_meta) as dst:
                 dst.write(elevmat, indexes=1) #elevation
    
     #SOCIO-ECONOMICS
