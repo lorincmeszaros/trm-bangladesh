@@ -28,7 +28,7 @@ model_params = {
 }
 
 #Strategies (1 - Business as Usual, 2 - nabaripoma)
-strategy=2
+strategy=1
 
 #Options
 plot = True
@@ -46,7 +46,7 @@ trmsedrate = model_params['trmsedrate']
 cellsize = 100 #100m
 mslstart = 0.00
 startyear = 2022
-endyear = 2100
+endyear = 2050
 kslr = 0.02
 mindraingrad = 0.1 / 1000. # 10cm per km minimum drainage gradient
 year = startyear
@@ -278,6 +278,8 @@ is_TRM_prev = False
 trmlevelyear1 = np.full(np.shape(elevmat),0)
 trmlevelyear2 = np.full(np.shape(elevmat),0)
 
+print('Strategy: ' + str(strategy))
+
 print('******** Simulation starts ********')
 for year in np.arange(startyear, endyear+1,1):
     """
@@ -394,95 +396,99 @@ for year in np.arange(startyear, endyear+1,1):
         
     ht_wet= msl + wl_wet + 0.5 * tidalrange #calculate for each cell the high tide level of the nearest cell in the wet season
 
-    #create ldd
-    pcrldd = pcr.lddcreate(pcrelev,2*trmsedrate,1.0e+12,1.0e+12,1.0e+12)
-
-    p_id_max = 0
-    bheel_id_max = 0
-    max_stored_volume = 0.0
-    for p_id in np.arange(1,25): #for each polder: #create a list with bheels per polder, including their minimum elevation and the area and amount of sediment that can be stored with 80cm of sedimentation and average water logging severity
-        poldermask = polmat == p_id
-        pcrpoldermask = pcr.numpy2pcr(pcr.Boolean, poldermask, -999.)
-        polderldd = pcr.lddmask(pcrldd, pcrpoldermask)
- 
-        #Determine pit cells
-        pcrpits = pcr.pit(polderldd)
-        pitsmat = pcr.pcr2numpy(pcrpits,0)
-        
-        n_bheels = np.max(pitsmat)
-        
-        #Make a map of upstream area of each bheel
-        pcrpoldercatch = pcr.subcatchment(polderldd, pcrpits)
-        poldercatch = pcr.pcr2numpy(pcrpoldercatch,0)
-        
-        for bheel in np.arange(1,n_bheels+1):
+    if strategy == 1:
+        #create ldd
+        pcrldd = pcr.lddcreate(pcrelev,2*trmsedrate,1.0e+12,1.0e+12,1.0e+12)
+    
+        p_id_max = 0
+        bheel_id_max = 0
+        max_stored_volume = 0.0
+        for p_id in np.arange(1,25): #for each polder: #create a list with bheels per polder, including their minimum elevation and the area and amount of sediment that can be stored with 80cm of sedimentation and average water logging severity
+            poldermask = polmat == p_id
+            pcrpoldermask = pcr.numpy2pcr(pcr.Boolean, poldermask, -999.)
+            polderldd = pcr.lddmask(pcrldd, pcrpoldermask)
+     
+            #Determine pit cells
+            pcrpits = pcr.pit(polderldd)
+            pitsmat = pcr.pcr2numpy(pcrpits,0)
+            
+            n_bheels = np.max(pitsmat)
+            
+            #Make a map of upstream area of each bheel
+            pcrpoldercatch = pcr.subcatchment(polderldd, pcrpits)
+            poldercatch = pcr.pcr2numpy(pcrpoldercatch,0)
+            
+            for bheel in np.arange(1,n_bheels+1):
+                pitelev = elevmat[pitsmat==bheel]
+                h_wl = ht_wet[pitsmat==bheel]
+                bheel_mask = np.full(np.shape(elevmat),0)
+                bheel_mask[poldercatch==bheel] = 1 
+                sed_thick = np.maximum(0.,np.minimum(pitelev + 2*trmsedrate,h_wl)-elevmat)*bheel_mask
+                bheel_cells=np.sum(sed_thick>0.0)
+                if bheel_cells > 0.0:
+                    stored_volume = (bheel_cells*cellsize*cellsize) * np.sum(sed_thick)/bheel_cells
+                else:
+                    stored_volume = 0.0
+                           
+                waterlogged_sev_bheel= np.full(np.shape(elevmat),0)
+                waterlogged_sev_bheel = waterlogged_sev_wet * bheel_mask
+    
+                if bheel_cells > 0.0:
+                    mean_watlog_bheel = np.sum(waterlogged_sev_bheel)/bheel_cells
+                else:
+                    mean_watlog_bheel = 0.0
+                
+                if (stored_volume > max_stored_volume) and (mean_watlog_bheel>0.8):
+                    max_stored_volume=stored_volume
+                    p_id_max = p_id
+                    bheel_id_max = bheel
+    
+        if is_TRM_prev:
+            elevmat = elevmat + trmlevelyear2
+            trmlevelyear2=np.full(np.shape(elevmat), 0)
+            is_TRM_prev = False
+    
+        if p_id_max > 0:
+            is_TRM = True
+            p_id=p_id_max
+            bheel=bheel_id_max
+            poldermask = polmat == p_id
+            pcrpoldermask = pcr.numpy2pcr(pcr.Boolean, poldermask, -999.)
+            polderldd = pcr.lddmask(pcrldd, pcrpoldermask)
+     
+            #Determine pit cells
+            pcrpits = pcr.pit(polderldd)
+            pitsmat = pcr.pcr2numpy(pcrpits,0)
+                   
+            #Make a map of upstream area of each bheel
+            pcrpoldercatch = pcr.subcatchment(polderldd, pcrpits)
+            poldercatch = pcr.pcr2numpy(pcrpoldercatch,0)
+            
             pitelev = elevmat[pitsmat==bheel]
             h_wl = ht_wet[pitsmat==bheel]
             bheel_mask = np.full(np.shape(elevmat),0)
             bheel_mask[poldercatch==bheel] = 1 
-            sed_thick = np.maximum(0.,np.minimum(pitelev + 2*trmsedrate,h_wl)-elevmat)*bheel_mask
-            bheel_cells=np.sum(sed_thick>0.0)
-            if bheel_cells > 0.0:
-                stored_volume = (bheel_cells*cellsize*cellsize) * np.sum(sed_thick)/bheel_cells
-            else:
-                stored_volume = 0.0
-                       
-            waterlogged_sev_bheel= np.full(np.shape(elevmat),0)
-            waterlogged_sev_bheel = waterlogged_sev_wet * bheel_mask
-
-            if bheel_cells > 0.0:
-                mean_watlog_bheel = np.sum(waterlogged_sev_bheel)/bheel_cells
-            else:
-                mean_watlog_bheel = 0.0
-            
-            if (stored_volume > max_stored_volume) and (mean_watlog_bheel>0.8):
-                max_stored_volume=stored_volume
-                p_id_max = p_id
-                bheel_id_max = bheel
-
-    if is_TRM_prev:
-        elevmat = elevmat + trmlevelyear2
-        trmlevelyear2=np.full(np.shape(elevmat), 0)
-        is_TRM_prev = False
-
-    if p_id_max > 0:
-        is_TRM = True
-        p_id=p_id_max
-        bheel=bheel_id_max
-        poldermask = polmat == p_id
-        pcrpoldermask = pcr.numpy2pcr(pcr.Boolean, poldermask, -999.)
-        polderldd = pcr.lddmask(pcrldd, pcrpoldermask)
- 
-        #Determine pit cells
-        pcrpits = pcr.pit(polderldd)
-        pitsmat = pcr.pcr2numpy(pcrpits,0)
-               
-        #Make a map of upstream area of each bheel
-        pcrpoldercatch = pcr.subcatchment(polderldd, pcrpits)
-        poldercatch = pcr.pcr2numpy(pcrpoldercatch,0)
         
-        pitelev = elevmat[pitsmat==bheel]
-        h_wl = ht_wet[pitsmat==bheel]
-        bheel_mask = np.full(np.shape(elevmat),0)
-        bheel_mask[poldercatch==bheel] = 1 
+            trmlevelyear1 = np.maximum(0.0, np.minimum(pitelev + trmsedrate, h_wl) - elevmat) * bheel_mask
+            trmlevelyear2 = np.maximum(0.0, np.minimum(pitelev + trmlevelyear1 + trmsedrate, h_wl) - elevmat) * bheel_mask
     
-        trmlevelyear1 = np.maximum(0.0, np.minimum(pitelev + trmsedrate, h_wl) - elevmat) * bheel_mask
-        trmlevelyear2 = np.maximum(0.0, np.minimum(pitelev + trmlevelyear1 + trmsedrate, h_wl) - elevmat) * bheel_mask
-
-        plt.matshow(trmlevelyear1)
-        plt.colorbar()
-        plt.title('trmlevel_polder_' + str(p_id) + '_' +  str(year))
-        plt.show()
-        plt.close()
-   
-    if is_TRM:
-        elevmat = elevmat + trmlevelyear1
-        trmlevelyear1=np.full(np.shape(elevmat), 0)
-        is_TRM_prev = True
+            plt.matshow(trmlevelyear1)
+            plt.colorbar()
+            plt.title('trmlevel_polder_' + str(p_id) + '_' +  str(year))
+            plt.show()
+            plt.close()
+       
+        if is_TRM:
+            elevmat = elevmat + trmlevelyear1
+            trmlevelyear1=np.full(np.shape(elevmat), 0)
+            is_TRM_prev = True
     
     #PLOT
     #filename
-    filename_waterlogging=r'p:\11208012-011-nabaripoma\Model\Python\results\real\waterlogging\waterlogging_' + str(year) + '.png'
+    if strategy== 1:
+        filename_waterlogging=r'p:\11208012-011-nabaripoma\Model\Python\results\real\waterlogging\strategy1\waterlogging_strategy1_' + str(year) + '.png'
+    elif strategy == 2:
+        filename_waterlogging=r'p:\11208012-011-nabaripoma\Model\Python\results\real\waterlogging\strategy2\waterlogging_strategy2_' + str(year) + '.png'    
 
     if plot:
         #plot
@@ -491,10 +497,10 @@ for year in np.arange(startyear, endyear+1,1):
         f1=ax1.matshow(elevmat, vmin=-1, vmax = 10)
         ax1.set_title('elevation')
         plt.colorbar(f1,ax=ax1)
-        f2=ax2.matshow(waterlogged_sev_dry, vmin=0, vmax = 1)
+        f2=ax2.matshow(waterlogged_sev_dry_mask, vmin=0, vmax = 1)
         ax2.set_title('waterlogged_sev_dry')
         plt.colorbar(f2,ax=ax2)
-        f3=ax3.matshow(waterlogged_sev_wet, vmin=0, vmax = 1)
+        f3=ax3.matshow(waterlogged_sev_wet_mask, vmin=0, vmax = 1)
         ax3.set_title('waterlogged_sev_wet')
         plt.colorbar(f3,ax=ax3)
         f.suptitle(year, fontsize=16, x=0.5)
@@ -506,16 +512,15 @@ for year in np.arange(startyear, endyear+1,1):
     if raster:
         if year == startyear or year == endyear:            
             #Write raster file (waterlogging)
-            with rasterio.open(r'p:\11208012-011-nabaripoma\Model\Python\results\real\waterlogging\geotif\waterlogging_dry_' + str(year) + '.tif', 'w', **ras_meta) as dst:
-                dst.write(waterlogged_sev_dry, indexes=1) #Dry
+            with rasterio.open(r'p:\11208012-011-nabaripoma\Model\Python\results\real\waterlogging\geotif\waterlogging_dry_strategy' + str(strategy) + '_' + str(year) + '.tif', 'w', **ras_meta) as dst:
+                dst.write(waterlogged_sev_dry_mask, indexes=1) #Dry
                 
-            with rasterio.open(r'p:\11208012-011-nabaripoma\Model\Python\results\real\waterlogging\geotif\waterlogging_wet_' + str(year) + '.tif', 'w', **ras_meta) as dst:
-                dst.write(waterlogged_sev_wet, indexes=1) #Wet   
+            with rasterio.open(r'p:\11208012-011-nabaripoma\Model\Python\results\real\waterlogging\geotif\waterlogging_wet_strategy_' + str(strategy) + '_' + str(year) + '.tif', 'w', **ras_meta) as dst:
+                dst.write(waterlogged_sev_wet_mask, indexes=1) #Wet   
             
             #Write raster file (elevation)   
-            with rasterio.open(r'p:\11208012-011-nabaripoma\Model\Python\results\real\elevation\geotif\elevation_' + str(year) + '.tif', 'w', **ras_meta) as dst:
+            with rasterio.open(r'p:\11208012-011-nabaripoma\Model\Python\results\real\elevation\geotif\elevation_strategy_' + str(strategy) + '_' + str(year) + '.tif', 'w', **ras_meta) as dst:
                 dst.write(elevmat, indexes=1) #elevation
-  
    
     #SOCIO-ECONOMICS
     
@@ -529,9 +534,9 @@ for year in np.arange(startyear, endyear+1,1):
     pop_food_insecure = np.zeros(np.shape(elevmat))
     pop_migration = np.zeros(np.shape(elevmat))
     
-    # ind_name_list = ['production_rice', 'production_fish', 'production_shrimp', 'pop_inc_below_pov', 'emp_perm', 'emp_seasonal', 'pop_food_insecure', 'pop_migration']
-    ind_name_list = [1, 2, 3, 4, 5, 6, 7, 8]
-    ind_value_list= [production_rice, production_fish, production_shrimp, pop_inc_below_pov, emp_perm, emp_seasonal, pop_food_insecure, pop_migration]
+    # ind_name_list = ['production_rice', 'production_fish', 'production_shrimp', 'pop_inc_below_pov', 'emp_perm', 'emp_seasonal', 'pop_food_insecure', 'pop_migration', 'waterlogged_sev_wet']
+    ind_name_list = [1, 2, 3, 4, 5, 6, 7, 8, 9]
+    ind_value_list= [production_rice, production_fish, production_shrimp, pop_inc_below_pov, emp_perm, emp_seasonal, pop_food_insecure, pop_migration, waterlogged_sev_wet]
     
     #i=0  rice_irrig_small                 #i=1  rice_irrig_med               #i=2  rice_irrig_large
     #i=3  rice_no_irrig_small              #i=4  rice_no_irrig_med            #i=5  rice_no_irrig_large
@@ -571,7 +576,7 @@ for year in np.arange(startyear, endyear+1,1):
             for i in np.arange(0, 30):
                 if landowner_agents_xy[x,y,i] >= 1.0:
                     for no_agent in np.arange(1, landowner_agents_xy[x,y,i]+1):
-                        (production, income_above_poverty, req_perm_farm_empl, req_seasonal_farm_empl, food_security, migration_family, landless_farmer) = agent_functions(0.8) #agent_functions(waterlogged_sev_wet[x,y])
+                        (production, income_above_poverty, req_perm_farm_empl, req_seasonal_farm_empl, food_security, migration_family, landless_farmer) = agent_functions(waterlogged_sev_wet[x,y])
                       
                         #update indicators per agent
                         if i==0:
@@ -849,5 +854,5 @@ for year in np.arange(startyear, endyear+1,1):
             df = pd.concat( [df.copy(),pd.DataFrame([{'Year':year, 'Strategy':strategy, 'Indicator': ind_name_list[ind], 'Polder':p, 'Value': np.mean(ind_value_list[ind][polmat==p]) }])] )
 
 #Save .csv
-df.to_csv(r'p:\11208012-011-nabaripoma\Model\Python\results\real\csv\model_output.csv', index=False, float_format='%.2f')
+df.to_csv(r'p:\11208012-011-nabaripoma\Model\Python\results\real\csv\model_output_strategy' + str(strategy) + '.csv', index=False, float_format='%.2f')
 
