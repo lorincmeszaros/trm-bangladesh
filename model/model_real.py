@@ -61,7 +61,7 @@ with rasterio.open(r'p:\11208012-011-nabaripoma\Data\elevation.tif') as src:
 # read the location of rivers and sea
 rs_raster = rioxarray.open_rasterio(r'p:\11208012-011-nabaripoma\Data\rivers.tif')
 rsmat = rs_raster.to_numpy().squeeze()
-#rsmat[-5:,:]=2
+
 #plot
 plt.matshow(rsmat)
 plt.title('location of rivers and sea')
@@ -438,7 +438,7 @@ for year in np.arange(startyear, endyear+1,1):
                 else:
                     mean_watlog_bheel = 0.0
                 
-                if (stored_volume > max_stored_volume) and (mean_watlog_bheel>0.8):
+                if (stored_volume > max_stored_volume) and (mean_watlog_bheel>0.3):
                     max_stored_volume=stored_volume
                     p_id_max = p_id
                     bheel_id_max = bheel
