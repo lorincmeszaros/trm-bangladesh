@@ -79,6 +79,7 @@ plt.title('elevation')
 plt.colorbar()
 plt.show()
 
+
 # read the location of polders
 pol_raster = rioxarray.open_rasterio(r'p:\11208012-011-nabaripoma\Data\polders.tif')
 polmat = pol_raster.to_numpy().squeeze()
@@ -312,6 +313,16 @@ for year in np.arange(startyear, endyear+1,1):
     
 	#Create subcatchments above the river cells (pcr.subcatchment(ldd, river cells)
     pcrsub = pcr.subcatchment(pcrldd, pcr.nominal(pcrrivid))
+    submat = pcr.pcr2numpy(pcrsub,-999)
+    
+    #Accumulated material flowing into downstream cell
+    pcraccu=pcr.accuflux(pcrldd,1)
+    accumat=pcr.pcr2numpy(pcraccu,-999)
+    
+    # plt.matshow(accumat)
+    # plt.title('accuflow')
+    # plt.colorbar()
+    # plt.show()  
 
     #River bed level
     bedlevel=np.full_like(elevmat, -999)
@@ -320,6 +331,11 @@ for year in np.arange(startyear, endyear+1,1):
     pcrbedlevel = pcr.numpy2pcr(pcr.Scalar, bedlevel, -999.)
     pcrpolderbedlevel = pcr.areatotal(pcrbedlevel, pcrsub)
     polderbedlevelmat = pcr.pcr2numpy(pcrpolderbedlevel,0)
+    
+    # plt.matshow(polderbedlevelmat)
+    # plt.title('polderbedlevel')
+    # plt.colorbar()
+    # plt.show()
             
     #tidal range - for the moment a linear decrease with 2cm per km from 2m at sea
     #tidalrange = 2. - 0.02 * dist2seamat
@@ -345,7 +361,12 @@ for year in np.arange(startyear, endyear+1,1):
     gradient_wet=np.full(np.shape(elevmat),np.nan)
     gradient_dry[is_polder] = (elevmat[is_polder] - lt_dry[is_polder]) / dist2rivmat[is_polder]
     gradient_wet[is_polder] = (elevmat[is_polder] - lt_wet[is_polder]) / dist2rivmat[is_polder]
-       
+    
+    # plt.matshow(gradient_wet, vmin=0, vmax=2*mindraingrad)
+    # plt.title('gradient_wet')
+    # plt.colorbar()
+    # plt.show()
+    
     #Waterlogging
     is_waterlogged_dry = np.full(np.shape(elevmat),False)    
     is_waterlogged_wet = np.full(np.shape(elevmat),False) 
@@ -353,12 +374,12 @@ for year in np.arange(startyear, endyear+1,1):
     is_waterlogged_wet[(is_polder) & (gradient_wet < mindraingrad)] = True  
     
     #dry
-    waterlogged_sev_dry = 1 - (gradient_dry / mindraingrad)
+    waterlogged_sev_dry = 1. - (gradient_dry / mindraingrad)
     waterlogged_sev_dry[waterlogged_sev_dry < 0.] = 0.
     waterlogged_sev_dry[waterlogged_sev_dry > 1.] = 1.
     
     #wet
-    waterlogged_sev_wet = 1 - (gradient_wet / mindraingrad)
+    waterlogged_sev_wet = 1. - (gradient_wet / mindraingrad)
     waterlogged_sev_wet[waterlogged_sev_wet < 0.] = 0.
     waterlogged_sev_wet[waterlogged_sev_wet > 1.] = 1.
 
