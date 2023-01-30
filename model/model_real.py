@@ -8,7 +8,7 @@ This demontrsation has been developed as part of the 2022 research project:
 """
 #set current working directory
 import os
-os.chdir(r'C:\Users\lorinc\OneDrive - Stichting Deltares\Documents\GitHub\trm-bangladesh\model')
+os.chdir(r'C:\Users\lorinc\Documents\GitHub\trm-bangladesh\model')
 import numpy as np
 import math as math
 import pcraster as pcr
@@ -46,7 +46,7 @@ trmsedrate = model_params['trmsedrate']
 cellsize = 100 #100m
 mslstart = 0.00
 startyear = 2022
-endyear = 2050
+endyear = 2100
 kslr = 0.02
 mindraingrad = 0.1 / 1000. # 10cm per km minimum drainage gradient
 year = startyear
