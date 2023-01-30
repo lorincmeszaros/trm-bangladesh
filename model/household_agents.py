@@ -918,13 +918,13 @@ def agent_functions(wlog_sev):
     #Rice
     farm_prod['rice'] = (1-wlog_sev)*farmprod['rice'] #ton/hectare
     #Fish
-    if wlog_sev > 0.6:
-        farm_prod['fish'] = (farmprod['fish']*((1-wlog_sev)+0.6))
+    if wlog_sev > 0.3:
+        farm_prod['fish'] = (farmprod['fish']*((1-wlog_sev)+0.3))
     else:
         farm_prod['fish'] = farmprod['fish']
     #Shrimp
-    if wlog_sev > 0.6:
-        farm_prod['shrimp'] = (farmprod['shrimp']*((1-wlog_sev)+0.6))
+    if wlog_sev > 0.3:
+        farm_prod['shrimp'] = (farmprod['shrimp']*((1-wlog_sev)+0.3))
     else:
         farm_prod['shrimp'] = farmprod['shrimp']
         

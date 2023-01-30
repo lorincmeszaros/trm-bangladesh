@@ -438,7 +438,7 @@ for year in np.arange(startyear, endyear+1,1):
                 else:
                     mean_watlog_bheel = 0.0
                 
-                if (stored_volume > max_stored_volume) and (mean_watlog_bheel>0.3):
+                if (stored_volume > max_stored_volume) and (mean_watlog_bheel>0.2):
                     max_stored_volume=stored_volume
                     p_id_max = p_id
                     bheel_id_max = bheel
