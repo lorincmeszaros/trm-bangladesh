@@ -29,7 +29,7 @@ model_params = {
 }
 
 #Strategies (1 - Business as Usual, 2 - nabaripoma)
-strategy=1
+strategy=2
 
 #Options
 plot = True
