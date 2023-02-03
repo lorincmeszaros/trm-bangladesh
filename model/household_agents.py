@@ -25,10 +25,16 @@ def agent_functions(wlog_sev):
 #%%
     #INIT
     #Agent attributes
+    # farmsize = {
+    # "small": np.random.normal(loc=0.51, scale=(1.01-0.51)/3.0),
+    # "med": np.random.normal(loc=2.02, scale=(3.03-2.02)/3.0),
+    # "large": np.random.normal(loc=6.07, scale=(6.07-3.04)/3.0)
+    # }
+    
     farmsize = {
-    "small": np.random.normal(loc=0.51, scale=(1.01-0.51)/3.0),
-    "med": np.random.normal(loc=2.02, scale=(3.03-2.02)/3.0),
-    "large": np.random.normal(loc=6.07, scale=(6.07-3.04)/3.0)
+    "small": 0.51,
+    "med": 2.02,
+    "large": 6.07
     }
     
     tot_pop_agr = {
@@ -38,24 +44,44 @@ def agent_functions(wlog_sev):
     "landless": 44./100.
     }
     
+    # householdsize = {
+    # "small": np.random.normal(loc=4.15, scale=(4.15-1.0)/3.0),
+    # "med": np.random.normal(loc=4.15, scale=(4.15-1.0)/3.0),
+    # "large": np.random.normal(loc=4.15, scale=(4.15-1.0)/3.0),
+    # "landless": np.random.normal(loc=4.15, scale=(4.15-1.0)/3.0)
+    # }
+
     householdsize = {
-    "small": np.random.normal(loc=4.15, scale=(4.15-1.0)/3.0),
-    "med": np.random.normal(loc=4.15, scale=(4.15-1.0)/3.0),
-    "large": np.random.normal(loc=4.15, scale=(4.15-1.0)/3.0),
-    "landless": np.random.normal(loc=4.15, scale=(4.15-1.0)/3.0)
+    "small": 4.15,
+    "med": 4.15,
+    "large": 4.15,
+    "landless": 4.15,
     }
 
+    # fam_member_12 = {
+    # "small": np.random.normal(loc=1.0375, scale=1.0375/3.0),
+    # "med": np.random.normal(loc=1.0375, scale=1.0375/3.0),
+    # "large": np.random.normal(loc=1.0375, scale=1.0375/3.0),
+    # "landless": np.random.normal(loc=1.0375, scale=1.0375/3.0)
+    # }
+ 
     fam_member_12 = {
-    "small": np.random.normal(loc=1.0375, scale=1.0375/3.0),
-    "med": np.random.normal(loc=1.0375, scale=1.0375/3.0),
-    "large": np.random.normal(loc=1.0375, scale=1.0375/3.0),
-    "landless": np.random.normal(loc=1.0375, scale=1.0375/3.0)
+    "small": 1.0375,
+    "med": 1.0375,
+    "large": 1.0375,
+    "landless": 1.0375,
     }
     
+    # leasedarea = {
+    # "small": np.random.normal(loc=0.1, scale=(0.1-0)/3.0),
+    # "med": np.random.normal(loc=0.3, scale=(0.3-0)/3.0),
+    # "large": np.random.normal(loc=0.4, scale=(0.4-0)/3.0)
+    # }
+
     leasedarea = {
-    "small": np.random.normal(loc=0.1, scale=(0.1-0)/3.0),
-    "med": np.random.normal(loc=0.3, scale=(0.3-0)/3.0),
-    "large": np.random.normal(loc=0.4, scale=(0.4-0)/3.0)
+    "small": 0.1,
+    "med": 0.3,
+    "large": 0.4,
     }
          
     croppping_pattern = {
@@ -262,7 +288,8 @@ def agent_functions(wlog_sev):
     poverty_line = 192.
 
     #Days seasonal employment landless
-    days_seas_emp_landless = np.random.normal(loc=54., scale=(0.3*54.))
+    # days_seas_emp_landless = np.random.normal(loc=54., scale=(0.3*54.))
+    days_seas_emp_landless = 54.
     
     #People working in landless housseholds
     peop_work_landless = 50./100.
