@@ -95,7 +95,7 @@ no_polder=np.max(polmat)
 
 # read households per ha (per gridcell)
 hh_raster = rioxarray.open_rasterio(r'p:\11208012-011-nabaripoma\Data\hh_perha.tif')
-hhmat = hh_raster.to_numpy().squeeze() * 10.0 #multiply number of households
+hhmat = hh_raster.to_numpy().squeeze() #multiply number of households
 #plot
 plt.matshow(hhmat, vmax=30)
 plt.title('households per ha')
