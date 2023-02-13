@@ -8,8 +8,8 @@ This demontrsation has been developed as part of the 2022 research project:
 """
 #set current working directory
 import os
-os.chdir(r'C:\Users\lorinc\Documents\GitHub\trm-bangladesh\model')
-#os.chdir(r'C:\Users\lorinc\OneDriveDeltares\Documents\GitHub\trm-bangladesh\model')
+#os.chdir(r'C:\Users\lorinc\Documents\GitHub\trm-bangladesh\model')
+os.chdir(r'C:\Users\lorinc\OneDriveDeltares\Documents\GitHub\trm-bangladesh\model')
 import numpy as np
 import math as math
 import pcraster as pcr
@@ -47,7 +47,7 @@ trmsedrate = model_params['trmsedrate']
 cellsize = 100 #100m
 mslstart = 0.00
 startyear = 2022
-endyear = 2100
+endyear = 2020
 kslr = 0.02
 mindraingrad = 0.1 / 1000. # 10cm per km minimum drainage gradient
 year = startyear
@@ -439,7 +439,7 @@ for year in np.arange(startyear, endyear+1,1):
                 else:
                     mean_watlog_bheel = 0.0
                 
-                if (stored_volume > max_stored_volume) and (mean_watlog_bheel>0.3):
+                if (stored_volume > max_stored_volume) and (mean_watlog_bheel>0.1):
                     max_stored_volume=stored_volume
                     p_id_max = p_id
                     bheel_id_max = bheel
@@ -470,6 +470,8 @@ for year in np.arange(startyear, endyear+1,1):
             bheel_mask = np.full(np.shape(elevmat),0)
             bheel_mask[poldercatch==bheel] = 1 
         
+            sed_thick = np.maximum(0.,np.minimum(pitelev + 2*trmsedrate,h_wl)-elevmat)*bheel_mask
+            bheel_cells=np.sum(sed_thick>0.0)            
             trmlevelyear1 = np.maximum(0.0, np.minimum(pitelev + trmsedrate, h_wl) - elevmat) * bheel_mask
             trmlevelyear2 = np.maximum(0.0, np.minimum(pitelev + trmlevelyear1 + trmsedrate, h_wl) - elevmat) * bheel_mask
     
@@ -536,8 +538,8 @@ for year in np.arange(startyear, endyear+1,1):
     pop_migration = np.zeros(np.shape(elevmat))
     
     # ind_name_list = ['production_rice', 'production_fish', 'production_shrimp', 'pop_inc_below_pov', 'emp_perm', 'emp_seasonal', 'pop_food_insecure', 'pop_migration', 'waterlogged_sev_wet']
-    ind_name_list = [1, 2, 3, 4, 5, 6, 7, 8, 9]
-    ind_value_list= [production_rice, production_fish, production_shrimp, pop_inc_below_pov, emp_perm, emp_seasonal, pop_food_insecure, pop_migration, waterlogged_sev_wet]
+    ind_name_list = [1, 2, 3, 4, 5, 6, 7, 8, 9, 10]
+    ind_value_list= [production_rice, production_fish, production_shrimp, pop_inc_below_pov, emp_perm, emp_seasonal, pop_food_insecure, pop_migration, waterlogged_sev_wet, bheel_cells]
     
     #i=0  rice_irrig_small                 #i=1  rice_irrig_med               #i=2  rice_irrig_large
     #i=3  rice_no_irrig_small              #i=4  rice_no_irrig_med            #i=5  rice_no_irrig_large
@@ -852,8 +854,14 @@ for year in np.arange(startyear, endyear+1,1):
     #df = pd.concat([df.copy(),pd.DataFrame([{'Year':year, 'Indicator':'gross_income_rice_small', 'Polder':0, 'Value':np.mean(farm_gross_income_rice_small[polmat!=0])}])])
     for ind in np.arange(0, len(ind_name_list)):
         for p in np.arange(1, no_polder+1):
-            df = pd.concat( [df.copy(),pd.DataFrame([{'Year':year, 'Strategy':strategy, 'Indicator': ind_name_list[ind], 'Polder':p, 'Value': np.mean(ind_value_list[ind][polmat==p]) }])] )
-
+            if ind in [4,7,8,9]:
+                df = pd.concat( [df.copy(),pd.DataFrame([{'Year':year, 'Strategy':strategy, 'Indicator': ind_name_list[ind], 'Polder':p, 'Value': np.mean(ind_value_list[ind][polmat==p]) }])] )
+            elif ind == 10:
+                df = pd.concat( [df.copy(),pd.DataFrame([{'Year':year, 'Strategy':strategy, 'Indicator': ind_name_list[ind], 'Polder':p, 'Value': ind_value_list[ind][polmat==p] }])] )
+            else:
+                df = pd.concat( [df.copy(),pd.DataFrame([{'Year':year, 'Strategy':strategy, 'Indicator': ind_name_list[ind], 'Polder':p, 'Value': np.sum(ind_value_list[ind][polmat==p]) }])] )
+                
+                
 #Save .csv
 df.to_csv(r'p:\11208012-011-nabaripoma\Model\Python\results\real\csv\model_output_strategy' + str(strategy) + '.csv', index=False, float_format='%.2f')
 
