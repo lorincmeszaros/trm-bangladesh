@@ -9,7 +9,8 @@ This demontrsation has been developed as part of the 2022 research project:
 #set current working directory
 import os
 #os.chdir(r'C:\Users\vat\Documents\GitHub\trm-bangladesh\model')
-os.chdir(r'C:\Users\vat\OneDrive - Stichting Deltares\Documents\GitHub\trm-bangladesh\model')
+#os.chdir(r'C:\Users\vat\OneDrive - Stichting Deltares\Documents\GitHub\trm-bangladesh\model')
+os.chdir(r'C:\Users\lorinc\OneDrive - Stichting Deltares\Documents\GitHub\trm-bangladesh\model')
 import numpy as np
 import math as math
 import pcraster as pcr
@@ -47,7 +48,7 @@ trmsedrate = model_params['trmsedrate']
 cellsize = 100 #100m
 mslstart = 0.00
 startyear = 2022
-endyear = 2050
+endyear = 2030
 kslr = 0.02
 mindraingrad = 0.1 / 1000. # 10cm per km minimum drainage gradient
 year = startyear
@@ -406,6 +407,7 @@ for year in np.arange(startyear, endyear+1,1):
         p_id_max = 0
         bheel_id_max = 0
         max_stored_volume = 0.0
+        max_stored_area = 0.0
         for p_id in np.arange(1,25): #for each polder: #create a list with bheels per polder, including their minimum elevation and the area and amount of sediment that can be stored with 80cm of sedimentation and average water logging severity
  
            if p_id != prevtrm:
@@ -447,6 +449,7 @@ for year in np.arange(startyear, endyear+1,1):
                         max_stored_volume=stored_volume
                         p_id_max = p_id
                         bheel_id_max = bheel
+                        max_stored_area=bheel_cells
     
         if is_TRM_prev:
             elevmat = np.copy(elevmat) + trmlevelyear2
@@ -551,7 +554,7 @@ for year in np.arange(startyear, endyear+1,1):
     
 #     # ind_name_list = ['production_rice', 'production_fish', 'production_shrimp', 'pop_inc_below_pov', 'emp_perm', 'emp_seasonal', 'pop_food_insecure', 'pop_migration', 'waterlogged_sev_wet']
 #     ind_name_list = [1, 2, 3, 4, 5, 6, 7, 8, 9, 10]
-#     ind_value_list= [production_rice, production_fish, production_shrimp, pop_inc_below_pov, emp_perm, emp_seasonal, pop_food_insecure, pop_migration, waterlogged_sev_wet, bheel_cells]
+#     ind_value_list= [production_rice, production_fish, production_shrimp, pop_inc_below_pov, emp_perm, emp_seasonal, pop_food_insecure, pop_migration, waterlogged_sev_wet, max_stored_area]
     
 #     #i=0  rice_irrig_small                 #i=1  rice_irrig_med               #i=2  rice_irrig_large
 #     #i=3  rice_no_irrig_small              #i=4  rice_no_irrig_med            #i=5  rice_no_irrig_large
