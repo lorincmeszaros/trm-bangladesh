@@ -8,8 +8,8 @@ This demontrsation has been developed as part of the 2022 research project:
 """
 #set current working directory
 import os
-#os.chdir(r'C:\Users\lorinc\Documents\GitHub\trm-bangladesh\model')
-os.chdir(r'C:\Users\lorinc\OneDriveDeltares\Documents\GitHub\trm-bangladesh\model')
+#os.chdir(r'C:\Users\vat\Documents\GitHub\trm-bangladesh\model')
+os.chdir(r'C:\Users\vat\OneDrive - Stichting Deltares\Documents\GitHub\trm-bangladesh\model')
 import numpy as np
 import math as math
 import pcraster as pcr
@@ -278,6 +278,7 @@ is_TRM = False
 is_TRM_prev = False
 trmlevelyear1 = np.full(np.shape(elevmat),0)
 trmlevelyear2 = np.full(np.shape(elevmat),0)
+prevtrm = -999
 
 print('Strategy: ' + str(strategy))
 
@@ -343,7 +344,8 @@ for year in np.arange(startyear, endyear+1,1):
     #tidal range - for the moment a linear decrease with 2cm per km from 2m at sea
     #tidalrange = 2. - 0.02 * dist2seamat
     #tidalrange[tidalrange < 0.]= 0.
-    tidalrange = 2.5 #np.full(np.shape(elevmat),2.5) #fixed tidal range  
+    #tidalrange = np.full(np.shape(elevmat),2.5) #fixed tidal range  
+    tidalrange = 2.5 #fixed tidal range  
 
     # Sea Level Rise        
     msl =  mslstart + slr2100 / (math.exp(kslr * (endyear - startyear)) - math.exp(0)) * (math.exp( kslr * ( year - startyear)) - 1)
@@ -405,44 +407,46 @@ for year in np.arange(startyear, endyear+1,1):
         bheel_id_max = 0
         max_stored_volume = 0.0
         for p_id in np.arange(1,25): #for each polder: #create a list with bheels per polder, including their minimum elevation and the area and amount of sediment that can be stored with 80cm of sedimentation and average water logging severity
-            poldermask = polmat == p_id
-            pcrpoldermask = pcr.numpy2pcr(pcr.Boolean, poldermask, -999.)
-            polderldd = pcr.lddmask(pcrldd, pcrpoldermask)
-     
-            #Determine pit cells
-            pcrpits = pcr.pit(polderldd)
-            pitsmat = pcr.pcr2numpy(pcrpits,0)
-            
-            n_bheels = np.max(pitsmat)
-            
-            #Make a map of upstream area of each bheel
-            pcrpoldercatch = pcr.subcatchment(polderldd, pcrpits)
-            poldercatch = pcr.pcr2numpy(pcrpoldercatch,0)
-            
-            for bheel in np.arange(1,n_bheels+1):
-                pitelev = elevmat[pitsmat==bheel]
-                h_wl = ht_wet
-                bheel_mask = np.full(np.shape(elevmat),0)
-                bheel_mask[poldercatch==bheel] = 1 
-                sed_thick = np.maximum(0.,np.minimum(pitelev + 2*trmsedrate,h_wl)-elevmat)*bheel_mask
-                bheel_cells=np.sum(sed_thick>0.0)
-                if bheel_cells > 0.0:
-                    stored_volume = (bheel_cells*cellsize*cellsize) * np.sum(sed_thick)/bheel_cells
-                else:
-                    stored_volume = 0.0
-                           
-                waterlogged_sev_bheel= np.full(np.shape(elevmat),0)
-                waterlogged_sev_bheel = waterlogged_sev_wet * bheel_mask
-    
-                if bheel_cells > 0.0:
-                    mean_watlog_bheel = np.sum(waterlogged_sev_bheel)/bheel_cells
-                else:
-                    mean_watlog_bheel = 0.0
+ 
+           if p_id != prevtrm:
+                poldermask = polmat == p_id
+                pcrpoldermask = pcr.numpy2pcr(pcr.Boolean, poldermask, -999.)
+                polderldd = pcr.lddmask(pcrldd, pcrpoldermask)
+         
+                #Determine pit cells
+                pcrpits = pcr.pit(polderldd)
+                pitsmat = pcr.pcr2numpy(pcrpits,0)
                 
-                if (stored_volume > max_stored_volume) and (mean_watlog_bheel>0.1):
-                    max_stored_volume=stored_volume
-                    p_id_max = p_id
-                    bheel_id_max = bheel
+                n_bheels = np.max(pitsmat)
+                
+                #Make a map of upstream area of each bheel
+                pcrpoldercatch = pcr.subcatchment(polderldd, pcrpits)
+                poldercatch = pcr.pcr2numpy(pcrpoldercatch,0)
+                
+                for bheel in np.arange(1,n_bheels+1):
+                    pitelev = elevmat[pitsmat==bheel][0]
+                    h_wl = ht_wet
+                    bheel_mask = np.full(np.shape(elevmat),0)
+                    bheel_mask[poldercatch==bheel] = 1 
+                    sed_thick = np.maximum(0.,np.minimum(pitelev + 2*trmsedrate,h_wl)-elevmat)*bheel_mask
+                    bheel_cells=np.sum(sed_thick>0.0)
+                    if bheel_cells > 0.0:
+                        stored_volume = (bheel_cells*cellsize*cellsize) * np.sum(sed_thick)/bheel_cells
+                    else:
+                        stored_volume = 0.0
+                               
+                    waterlogged_sev_bheel= np.full(np.shape(elevmat),0)
+                    waterlogged_sev_bheel = waterlogged_sev_wet * bheel_mask
+        
+                    if bheel_cells > 0.0:
+                        mean_watlog_bheel = np.sum(waterlogged_sev_bheel)/bheel_cells
+                    else:
+                        mean_watlog_bheel = 0.0
+                    
+                    if (stored_volume > max_stored_volume) and (mean_watlog_bheel>0.1):
+                        max_stored_volume=stored_volume
+                        p_id_max = p_id
+                        bheel_id_max = bheel
     
         if is_TRM_prev:
             elevmat = np.copy(elevmat) + trmlevelyear2
@@ -452,6 +456,7 @@ for year in np.arange(startyear, endyear+1,1):
         if p_id_max > 0:
             is_TRM = True
             p_id=p_id_max
+            prevtrm = p_id
             bheel=bheel_id_max
             poldermask = polmat == p_id
             pcrpoldermask = pcr.numpy2pcr(pcr.Boolean, poldermask, -999.)
@@ -465,7 +470,7 @@ for year in np.arange(startyear, endyear+1,1):
             pcrpoldercatch = pcr.subcatchment(polderldd, pcrpits)
             poldercatch = pcr.pcr2numpy(pcrpoldercatch,0)
             
-            pitelev = elevmat[pitsmat==bheel]
+            pitelev = elevmat[pitsmat==bheel][0]
             h_wl = ht_wet
             bheel_mask = np.full(np.shape(elevmat),0)
             bheel_mask[poldercatch==bheel] = 1 
@@ -473,20 +478,21 @@ for year in np.arange(startyear, endyear+1,1):
             sed_thick = np.maximum(0.,np.minimum(pitelev + 2*trmsedrate,h_wl)-elevmat)*bheel_mask
             bheel_cells=np.sum(sed_thick>0.0)            
             trmlevelyear1 = np.maximum(0.0, np.minimum(pitelev + trmsedrate, h_wl) - elevmat) * bheel_mask
-            trmlevelyear2 = np.maximum(0.0, np.minimum(pitelev + trmlevelyear1 + trmsedrate, h_wl) - (elevmat + trmlevelyear1)) * bheel_mask
+
+            trmlevelyear2 = np.maximum(0.0, np.minimum(pitelev + 2 * trmsedrate, h_wl) - (elevmat + trmlevelyear1)) * bheel_mask
     
             plt.matshow(trmlevelyear1)
             plt.colorbar()
-            plt.title('trmlevel_y1_polder_' + str(p_id) + '_' +  str(year))
+            plt.title('trmlevel1_polder_' + str(p_id) + '_' +  str(year))
             plt.show()
             plt.close()
- 
+       
             plt.matshow(trmlevelyear2)
             plt.colorbar()
-            plt.title('trmlevel_y2_polder_' + str(p_id) + '_' +  str(year))
+            plt.title('trmlevel2_polder_' + str(p_id) + '_' +  str(year))
             plt.show()
-            plt.close()       
- 
+            plt.close()
+
         if is_TRM:
             elevmat = np.copy(elevmat) + trmlevelyear1
             trmlevelyear1=np.full(np.shape(elevmat), 0.)
@@ -519,17 +525,17 @@ for year in np.arange(startyear, endyear+1,1):
         plt.close()
     
     if raster:
-        if year == startyear or year == endyear:            
-            #Write raster file (waterlogging)
-            with rasterio.open(r'p:\11208012-011-nabaripoma\Model\Python\results\real\waterlogging\geotif\waterlogging_dry_strategy' + str(strategy) + '_' + str(year) + '.tif', 'w', **ras_meta) as dst:
-                dst.write(waterlogged_sev_dry_mask, indexes=1) #Dry
-                
-            with rasterio.open(r'p:\11208012-011-nabaripoma\Model\Python\results\real\waterlogging\geotif\waterlogging_wet_strategy' + str(strategy) + '_' + str(year) + '.tif', 'w', **ras_meta) as dst:
-                dst.write(waterlogged_sev_wet_mask, indexes=1) #Wet   
+#        if year == startyear or year == endyear:            
+        #Write raster file (waterlogging)
+        with rasterio.open(r'p:\11208012-011-nabaripoma\Model\Python\results\real\waterlogging\geotif\waterlogging_dry_strategy' + str(strategy) + '_' + str(year) + '.tif', 'w', **ras_meta) as dst:
+            dst.write(waterlogged_sev_dry_mask, indexes=1) #Dry
             
-            #Write raster file (elevation)   
-            with rasterio.open(r'p:\11208012-011-nabaripoma\Model\Python\results\real\elevation\geotif\elevation_strategy' + str(strategy) + '_' + str(year) + '.tif', 'w', **ras_meta) as dst:
-                dst.write(elevmat, indexes=1) #elevation
+        with rasterio.open(r'p:\11208012-011-nabaripoma\Model\Python\results\real\waterlogging\geotif\waterlogging_wet_strategy' + str(strategy) + '_' + str(year) + '.tif', 'w', **ras_meta) as dst:
+            dst.write(waterlogged_sev_wet_mask, indexes=1) #Wet   
+        
+        #Write raster file (elevation)   
+        with rasterio.open(r'p:\11208012-011-nabaripoma\Model\Python\results\real\elevation\geotif\elevation_strategy' + str(strategy) + '_' + str(year) + '.tif', 'w', **ras_meta) as dst:
+            dst.write(elevmat, indexes=1) #elevation
    
 #     #SOCIO-ECONOMICS
     
