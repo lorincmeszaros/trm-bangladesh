@@ -33,7 +33,7 @@ model_params = {
 strategy=2
 
 #Options
-plot = True
+plot = False
 raster = False
 
 #%%INITIALIZE
@@ -48,7 +48,7 @@ trmsedrate = model_params['trmsedrate']
 cellsize = 100 #100m
 mslstart = 0.00
 startyear = 2022
-endyear = 2030
+endyear = 2100
 kslr = 0.02
 mindraingrad = 0.1 / 1000. # 10cm per km minimum drainage gradient
 year = startyear
@@ -400,6 +400,9 @@ for year in np.arange(startyear, endyear+1,1):
         
     ht_wet= msl + wl_wet + 0.5 * tidalrange #calculate for each cell the high tide level of the nearest cell in the wet season
 
+    max_stored_area = np.zeros(np.max(polmat))
+    trm_binary = np.full(np.max(polmat), np.nan)
+    
     if strategy == 2:
         #create ldd
         pcrldd = pcr.lddcreate(pcrelev,2*trmsedrate,1.0e+12,1.0e+12,1.0e+12)
@@ -407,7 +410,8 @@ for year in np.arange(startyear, endyear+1,1):
         p_id_max = 0
         bheel_id_max = 0
         max_stored_volume = 0.0
-        max_stored_area = 0.0
+
+
         for p_id in np.arange(1,25): #for each polder: #create a list with bheels per polder, including their minimum elevation and the area and amount of sediment that can be stored with 80cm of sedimentation and average water logging severity
  
            if p_id != prevtrm:
@@ -449,7 +453,8 @@ for year in np.arange(startyear, endyear+1,1):
                         max_stored_volume=stored_volume
                         p_id_max = p_id
                         bheel_id_max = bheel
-                        max_stored_area=bheel_cells
+                        max_stored_area[p_id-1]=bheel_cells
+                        trm_binary[p_id-1] = 1
     
         if is_TRM_prev:
             elevmat = np.copy(elevmat) + trmlevelyear2
@@ -540,32 +545,32 @@ for year in np.arange(startyear, endyear+1,1):
         with rasterio.open(r'p:\11208012-011-nabaripoma\Model\Python\results\real\elevation\geotif\elevation_strategy' + str(strategy) + '_' + str(year) + '.tif', 'w', **ras_meta) as dst:
             dst.write(elevmat, indexes=1) #elevation
    
-#     #SOCIO-ECONOMICS
+    #SOCIO-ECONOMICS
     
-#     #init arrays
-#     production_rice = np.zeros(np.shape(elevmat))
-#     production_fish = np.zeros(np.shape(elevmat))
-#     production_shrimp = np.zeros(np.shape(elevmat))
-#     pop_inc_below_pov = np.zeros(np.shape(elevmat))
-#     emp_perm = np.zeros(np.shape(elevmat))
-#     emp_seasonal = np.zeros(np.shape(elevmat))
-#     pop_food_insecure = np.zeros(np.shape(elevmat))
-#     pop_migration = np.zeros(np.shape(elevmat))
+    #init arrays
+    production_rice = np.zeros(np.shape(elevmat))
+    production_fish = np.zeros(np.shape(elevmat))
+    production_shrimp = np.zeros(np.shape(elevmat))
+    pop_inc_below_pov = np.zeros(np.shape(elevmat))
+    emp_perm = np.zeros(np.shape(elevmat))
+    emp_seasonal = np.zeros(np.shape(elevmat))
+    pop_food_insecure = np.zeros(np.shape(elevmat))
+    pop_migration = np.zeros(np.shape(elevmat))
     
-#     # ind_name_list = ['production_rice', 'production_fish', 'production_shrimp', 'pop_inc_below_pov', 'emp_perm', 'emp_seasonal', 'pop_food_insecure', 'pop_migration', 'waterlogged_sev_wet']
-#     ind_name_list = [1, 2, 3, 4, 5, 6, 7, 8, 9, 10]
-#     ind_value_list= [production_rice, production_fish, production_shrimp, pop_inc_below_pov, emp_perm, emp_seasonal, pop_food_insecure, pop_migration, waterlogged_sev_wet, max_stored_area]
+    ind_name_list_str = ['production_rice', 'production_fish', 'production_shrimp', 'pop_inc_below_pov', 'emp_perm', 'emp_seasonal', 'pop_food_insecure', 'pop_migration', 'waterlogged_sev_wet', 'max_stored_area', 'trm_binary']
+    ind_name_list = [1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11]
+    ind_value_list= [production_rice, production_fish, production_shrimp, pop_inc_below_pov, emp_perm, emp_seasonal, pop_food_insecure, pop_migration, waterlogged_sev_wet, max_stored_area, trm_binary]
     
-#     #i=0  rice_irrig_small                 #i=1  rice_irrig_med               #i=2  rice_irrig_large
-#     #i=3  rice_no_irrig_small              #i=4  rice_no_irrig_med            #i=5  rice_no_irrig_large
-#     #i=6  rice_irrig_landlease_small       #i=7  rice_irrig_landlease_med     #i=8  rice_irrig_landlease_large
-#     #i=9  rice_no_irrig_landlease_small    #i=10 rice_no_irrig_landlease_med  #i=11 rice_no_irrig_landlease_large
-#     #i=12 fish_landlease_small             #i=13 fish_landlease_med           #i=14 fish_landlease_large
-#     #i=15 fish_no_landlease_small          #i=16 fish_no_landlease_med        #i=17 fish_no_landlease_large
-#     #i=18 shrimp_landlease_small           #i=19 shrimp_landlease_med         #i=20 shrimp_landlease_large
-#     #i=21 shrimp_no_landlease_small        #i=22 shrimp_no_landlease_med      #i=23 shrimp_no_landlease_large
-#     #i=24 fish-rice_landlease_small        #i=25 fish-rice_landlease_med      #i=26 fish-rice_landlease_large
-#     #i=27 fish-rice_no_landlease_small     #i=28 fish-rice_no_landlease_med   #i=29 fish-rice_no_landlease_large
+    #i=0  rice_irrig_small                 #i=1  rice_irrig_med               #i=2  rice_irrig_large
+    #i=3  rice_no_irrig_small              #i=4  rice_no_irrig_med            #i=5  rice_no_irrig_large
+    #i=6  rice_irrig_landlease_small       #i=7  rice_irrig_landlease_med     #i=8  rice_irrig_landlease_large
+    #i=9  rice_no_irrig_landlease_small    #i=10 rice_no_irrig_landlease_med  #i=11 rice_no_irrig_landlease_large
+    #i=12 fish_landlease_small             #i=13 fish_landlease_med           #i=14 fish_landlease_large
+    #i=15 fish_no_landlease_small          #i=16 fish_no_landlease_med        #i=17 fish_no_landlease_large
+    #i=18 shrimp_landlease_small           #i=19 shrimp_landlease_med         #i=20 shrimp_landlease_large
+    #i=21 shrimp_no_landlease_small        #i=22 shrimp_no_landlease_med      #i=23 shrimp_no_landlease_large
+    #i=24 fish-rice_landlease_small        #i=25 fish-rice_landlease_med      #i=26 fish-rice_landlease_large
+    #i=27 fish-rice_no_landlease_small     #i=28 fish-rice_no_landlease_med   #i=29 fish-rice_no_landlease_large
     
     
 #     #Calculate income, food security and migration with wet and dry season water logging severity as input
@@ -864,19 +869,19 @@ for year in np.arange(startyear, endyear+1,1):
 
 #             pop_migration[x,y] = np.nansum([pop_migration[x,y], (landless_migration_perm*landless_agents_perm[x,y] + landless_migration_seas*landless_agents_seas[x,y])*4.15])
 
-#     #Write and save .csv                 
-#     #update dataframe
-#     #df = pd.concat([df.copy(),pd.DataFrame([{'Year':year, 'Indicator':'gross_income_rice_small', 'Polder':0, 'Value':np.mean(farm_gross_income_rice_small[polmat!=0])}])])
-#     for ind in np.arange(0, len(ind_name_list)):
-#         for p in np.arange(1, no_polder+1):
-#             if ind in [4,7,8,9]:
-#                 df = pd.concat( [df.copy(),pd.DataFrame([{'Year':year, 'Strategy':strategy, 'Indicator': ind_name_list[ind], 'Polder':p, 'Value': np.mean(ind_value_list[ind][polmat==p]) }])] )
-#             elif ind == 10:
-#                 df = pd.concat( [df.copy(),pd.DataFrame([{'Year':year, 'Strategy':strategy, 'Indicator': ind_name_list[ind], 'Polder':p, 'Value': ind_value_list[ind][polmat==p] }])] )
-#             else:
-#                 df = pd.concat( [df.copy(),pd.DataFrame([{'Year':year, 'Strategy':strategy, 'Indicator': ind_name_list[ind], 'Polder':p, 'Value': np.sum(ind_value_list[ind][polmat==p]) }])] )
+    #Write and save .csv                 
+    #update dataframe
+    #df = pd.concat([df.copy(),pd.DataFrame([{'Year':year, 'Indicator':'gross_income_rice_small', 'Polder':0, 'Value':np.mean(farm_gross_income_rice_small[polmat!=0])}])])
+    for ind in np.arange(0, len(ind_name_list)):
+        for p in np.arange(1, no_polder+1):
+            if ind in [4,7,8]:
+                df = pd.concat( [df.copy(),pd.DataFrame([{'Year':year, 'Strategy':strategy, 'Indicator': ind_name_list[ind], 'Polder':p, 'Value': np.mean(ind_value_list[ind][polmat==p]) }])] )
+            elif ind in [9,10]:
+                df = pd.concat( [df.copy(),pd.DataFrame([{'Year':year, 'Strategy':strategy, 'Indicator': ind_name_list[ind], 'Polder':p, 'Value': ind_value_list[ind][p-1] }])] )
+            else:
+                df = pd.concat( [df.copy(),pd.DataFrame([{'Year':year, 'Strategy':strategy, 'Indicator': ind_name_list[ind], 'Polder':p, 'Value': np.sum(ind_value_list[ind][polmat==p]) }])] )
                 
                 
-# #Save .csv
-# df.to_csv(r'p:\11208012-011-nabaripoma\Model\Python\results\real\csv\model_output_strategy' + str(strategy) + '.csv', index=False, float_format='%.2f')
+#Save .csv
+df.to_csv(r'p:\11208012-011-nabaripoma\Model\Python\results\real\csv\model_output_strategy' + str(strategy) + '.csv', index=False, float_format='%.2f')
 
