@@ -9,8 +9,8 @@ This demontrsation has been developed as part of the 2022 research project:
 #set current working directory
 import os
 #os.chdir(r'C:\Users\vat\Documents\GitHub\trm-bangladesh\model')
-#os.chdir(r'C:\Users\vat\OneDrive - Stichting Deltares\Documents\GitHub\trm-bangladesh\model')
-os.chdir(r'C:\Users\lorinc\OneDrive - Stichting Deltares\Documents\GitHub\trm-bangladesh\model')
+os.chdir(r'C:\Users\vat\OneDrive - Stichting Deltares\Documents\GitHub\trm-bangladesh\model')
+#os.chdir(r'C:\Users\lorinc\OneDrive - Stichting Deltares\Documents\GitHub\trm-bangladesh\model')
 import numpy as np
 import math as math
 import pcraster as pcr
@@ -305,7 +305,7 @@ for year in np.arange(startyear, endyear+1,1):
     lddmat = pcr.pcr2numpy(pcrldd,-999)
 
     #calculate distance to river over ldd
-    pcrdist2riv = pcr.ldddist(pcrldd,pcrriv,1.)*cellsize
+    pcrdist2riv = pcr.ldddist(pcrldd,pcrriv,1.)
     dist2rivmat = pcr.pcr2numpy(pcrdist2riv,-999)
 
     # #calculate distance to sea over ldd
