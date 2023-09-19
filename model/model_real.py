@@ -9,8 +9,8 @@ This demontrsation has been developed as part of the 2022 research project:
 #set current working directory
 import os
 #os.chdir(r'C:\Users\vat\Documents\GitHub\trm-bangladesh\model')
-os.chdir(r'C:\Users\vat\OneDrive - Stichting Deltares\Documents\GitHub\trm-bangladesh\model')
-#os.chdir(r'C:\Users\lorinc\OneDrive - Stichting Deltares\Documents\GitHub\trm-bangladesh\model')
+#os.chdir(r'C:\Users\vat\OneDrive - Stichting Deltares\Documents\GitHub\trm-bangladesh\model')
+os.chdir(r'C:\Users\lorinc\OneDrive - Stichting Deltares\Documents\GitHub\trm-bangladesh\model')
 import numpy as np
 import math as math
 import pcraster as pcr
@@ -27,6 +27,7 @@ model_params = {
     "subsidence": 0.005, #UserSettableParameter
     "sedrate": 0.1, #UserSettableParameter
     "trmsedrate": 0.4, #UserSettableParameter
+    "trm_thres": 0.01
 }
 
 #Strategies (1 - Business as Usual, 2 - nabaripoma)
@@ -45,6 +46,7 @@ slr2100 = model_params['slr2100']
 subsidence = model_params['subsidence']
 sedrate = model_params['sedrate']
 trmsedrate = model_params['trmsedrate']
+trm_thres = model_params['trm_thres']
 cellsize = 100 #100m
 mslstart = 0.00
 startyear = 2022
@@ -53,6 +55,7 @@ kslr = 0.02
 mindraingrad = 0.1 / 1000. # 10cm per km minimum drainage gradient
 year = startyear
 msl = 0.00
+
 
 #Read grid maps   
 
@@ -449,7 +452,7 @@ for year in np.arange(startyear, endyear+1,1):
                     else:
                         mean_watlog_bheel = 0.0
                     
-                    if (stored_volume > max_stored_volume) and (mean_watlog_bheel>0.1):
+                    if (stored_volume > max_stored_volume) and (mean_watlog_bheel>trm_thres):
                         max_stored_volume=stored_volume
                         p_id_max = p_id
                         bheel_id_max = bheel
