@@ -10,7 +10,9 @@ This demontrsation has been developed as part of the 2022 research project:
 import os
 #os.chdir(r'C:\Users\vat\Documents\GitHub\trm-bangladesh\model')
 #os.chdir(r'C:\Users\vat\OneDrive - Stichting Deltares\Documents\GitHub\trm-bangladesh\model')
-os.chdir(r'C:\Users\lorinc\OneDrive - Stichting Deltares\Documents\GitHub\trm-bangladesh\model')
+#os.chdir(r'C:\Users\lorinc\OneDrive - Stichting Deltares\Documents\GitHub\trm-bangladesh\model')
+os.chdir(r'C:\Users\lorinc\Documents\GitHub\trm-bangladesh\model')
+
 import numpy as np
 import math as math
 import pcraster as pcr
@@ -24,7 +26,7 @@ from household_agents import agent_functions
 #UserSettableParameters
 model_params = {
     "slr2100": 1, #UserSettableParameter
-    "subsidence": 0.005, #UserSettableParameter
+    "subsidence": 0.01, #UserSettableParameter
     "sedrate": 0.1, #UserSettableParameter
     "trmsedrate": 0.4, #UserSettableParameter
     "trm_thres": 0.01
@@ -52,7 +54,7 @@ mslstart = 0.00
 startyear = 2022
 endyear = 2100
 kslr = 0.02
-mindraingrad = 0.1 / 1000. # 10cm per km minimum drainage gradient
+mindraingrad = 0.2 / 1000. # 10cm per km minimum drainage gradient
 year = startyear
 msl = 0.00
 
@@ -383,7 +385,9 @@ for year in np.arange(startyear, endyear+1,1):
     is_waterlogged_wet[(is_polder) & (gradient_wet < mindraingrad)] = True  
     
     #dry
-    waterlogged_sev_dry = 1. - (gradient_dry / mindraingrad)
+    #waterlogged_sev_dry = 1. - (gradient_dry / mindraingrad)
+    waterlogged_sev_dry = np.where(gradient_dry >= mindraingrad, 0, 1)
+        
     waterlogged_sev_dry[waterlogged_sev_dry < 0.] = 0.
     waterlogged_sev_dry[waterlogged_sev_dry > 1.] = 1.
     #Masked array for plotting
@@ -391,7 +395,9 @@ for year in np.arange(startyear, endyear+1,1):
     waterlogged_sev_dry_mask[is_polder] = waterlogged_sev_dry[is_polder]
     
     #wet
-    waterlogged_sev_wet = 1. - (gradient_wet / mindraingrad)
+    #waterlogged_sev_wet = 1. - (gradient_wet / mindraingrad)
+    waterlogged_sev_wet = np.where(gradient_wet >= mindraingrad, 0, 1)
+    
     waterlogged_sev_wet[waterlogged_sev_wet < 0.] = 0.
     waterlogged_sev_wet[waterlogged_sev_wet > 1.] = 1.
     #Masked array for plotting
