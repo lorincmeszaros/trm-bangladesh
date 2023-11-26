@@ -52,9 +52,9 @@ trm_thres = model_params['trm_thres']
 cellsize = 100 #100m
 mslstart = 0.00
 startyear = 2022
-endyear = 2042
+endyear = 2100
 kslr = 0.02
-mindraingrad = 0.1 / 1000. # 10cm per km minimum drainage gradient
+mindraingrad = 0.2 / 1000. # 20cm per km minimum drainage gradient
 year = startyear
 msl = 0.00
 
@@ -108,6 +108,10 @@ plt.title('households per ha')
 plt.colorbar()
 plt.show()
 
+#%%
+#INIT
+#Agent attributes
+
 #initialize households
 tot_pop_agr = {
 "small": 47.0/100.,
@@ -115,6 +119,73 @@ tot_pop_agr = {
 "large": 1./100.,
 "landless": 44./100.
 }
+
+#Static agent characteristics
+
+farmsize = {
+"small": 0.51,
+"med": 2.02,
+"large": 6.07
+}
+
+householdsize = {
+"small": 4.15,
+"med": 4.15,
+"large": 4.15,
+"landless": 4.15,
+}
+
+fam_member_12 = {
+"small": 1.0375,
+"med": 1.0375,
+"large": 1.0375,
+"landless": 1.0375,
+}
+
+leasedarea = {
+"small": 0.1,
+"med": 0.3,
+"large": 0.4,
+}
+
+irrigation_perc = {
+"small": 0.113, 
+"med": 0.746, 
+"large": 0.703,
+}
+
+# #Stochastic agent characteristics
+# farmsize = {
+# "small": np.random.normal(loc=0.51, scale=(1.01-0.51)/3.0),
+# "med": np.random.normal(loc=2.02, scale=(3.03-2.02)/3.0),
+# "large": np.random.normal(loc=6.07, scale=(6.07-3.04)/3.0)
+# }
+
+# householdsize = {
+# "small": np.random.normal(loc=4.15, scale=(4.15-1.0)/3.0),
+# "med": np.random.normal(loc=4.15, scale=(4.15-1.0)/3.0),
+# "large": np.random.normal(loc=4.15, scale=(4.15-1.0)/3.0),
+# "landless": np.random.normal(loc=4.15, scale=(4.15-1.0)/3.0)
+# }
+
+# fam_member_12 = {
+# "small": np.random.normal(loc=1.0375, scale=1.0375/3.0),
+# "med": np.random.normal(loc=1.0375, scale=1.0375/3.0),
+# "large": np.random.normal(loc=1.0375, scale=1.0375/3.0),
+# "landless": np.random.normal(loc=1.0375, scale=1.0375/3.0)
+# }
+
+# leasedarea = {
+# "small": np.random.normal(loc=0.1, scale=(0.1-0)/3.0),
+# "med": np.random.normal(loc=0.3, scale=(0.3-0)/3.0),
+# "large": np.random.normal(loc=0.4, scale=(0.4-0)/3.0)
+# }
+
+# irrigation_perc = {
+# "small": np.random.normal(loc=0.113, scale=(0.113-0.0)/3),
+# "med": np.random.normal(loc=0.746, scale=(1-0.746)/3),
+# "large": np.random.normal(loc=0.703, scale=(1-0.703)/3)
+# }
 
 land_ownership = {
 "small": 
@@ -157,13 +228,9 @@ croppping_pattern = {
     "shrimp": 0.30
     }
 }  
-
-irrigation_perc = {
-"small": np.random.normal(loc=0.113, scale=(0.113-0.0)/3),
-"med": np.random.normal(loc=0.746, scale=(1-0.746)/3),
-"large": np.random.normal(loc=0.703, scale=(1-0.703)/3)
-}
     
+
+#%%
 #Socio-economic initialization
 #init arrays
 landless_agents_perm = np.zeros(np.shape(elevmat))
@@ -221,13 +288,11 @@ print('Number of agents:')
 print(np.sum(hhmat))
 # print(landless_agents[x,y] + np.sum(landowner_agents_xy, axis = 2)[x,y])
 
-
 #initial pcraster calculation
 #set clonemap
 height = np.shape(elevmat)[0]
 width = np.shape(elevmat)[1]
 pcr.setclone(height, width, 1, 0, 0)
-
 
 #convert numpay arrays to PCR rasters
 pcrelev = pcr.numpy2pcr(pcr.Scalar, elevmat, -999.)
@@ -591,18 +656,17 @@ for year in np.arange(startyear, endyear+1,1):
     for x in np.arange(0, np.shape(elevmat)[0]):
         for y in np.arange(0, np.shape(elevmat)[1]):
             population=np.sum(landowner_agents_xy[x,y,:]) + landless_agents_perm[x,y] + landless_agents_seas[x,y]
-            
             #landless agents
             if landless_agents_perm[x,y] >= 1.0:
                 for no_agent in np.arange(1, landless_agents_perm[x,y]+1):
-                    (production, income_above_poverty, req_perm_farm_empl, req_seasonal_farm_empl, food_security, migration_family, landless_farmer) = agent_functions(waterlogged_sev_wet[x,y])            
+                    (production, income_above_poverty, req_perm_farm_empl, req_seasonal_farm_empl, food_security, migration_family, landless_farmer) = agent_functions(waterlogged_sev_wet[x,y], farmsize, householdsize, fam_member_12, leasedarea)            
                     
                     pop_inc_below_pov[x,y] = pop_inc_below_pov[x,y] + landless_farmer['income_above_poverty']['perm_empl']
                     pop_food_insecure[x,y] = pop_food_insecure[x,y] + landless_farmer['food_security']['perm_empl']
 
             if landless_agents_seas[x,y] >= 1.0:
                 for no_agent in np.arange(1, landless_agents_seas[x,y]+1):
-                    (production, income_above_poverty, req_perm_farm_empl, req_seasonal_farm_empl, food_security, migration_family, landless_farmer) = agent_functions(waterlogged_sev_wet[x,y])            
+                    (production, income_above_poverty, req_perm_farm_empl, req_seasonal_farm_empl, food_security, migration_family, landless_farmer) = agent_functions(waterlogged_sev_wet[x,y], farmsize, householdsize, fam_member_12, leasedarea)            
                     
                     pop_inc_below_pov[x,y] = pop_inc_below_pov[x,y] + landless_farmer['income_above_poverty']['seasonal_empl'] 
                     pop_food_insecure[x,y] = pop_food_insecure[x,y] + landless_farmer['food_security']['seasonal_empl']
@@ -614,7 +678,7 @@ for year in np.arange(startyear, endyear+1,1):
             for i in np.arange(0, 30):
                 if landowner_agents_xy[x,y,i] >= 1.0:
                     for no_agent in np.arange(1, landowner_agents_xy[x,y,i]+1):
-                        (production, income_above_poverty, req_perm_farm_empl, req_seasonal_farm_empl, food_security, migration_family, landless_farmer) = agent_functions(waterlogged_sev_wet[x,y])
+                        (production, income_above_poverty, req_perm_farm_empl, req_seasonal_farm_empl, food_security, migration_family, landless_farmer) = agent_functions(waterlogged_sev_wet[x,y], farmsize, householdsize, fam_member_12, leasedarea)
                       
                         #update indicators per agent
                         if i==0:
@@ -889,7 +953,7 @@ for year in np.arange(startyear, endyear+1,1):
     #df = pd.concat([df.copy(),pd.DataFrame([{'Year':year, 'Indicator':'gross_income_rice_small', 'Polder':0, 'Value':np.mean(farm_gross_income_rice_small[polmat!=0])}])])
     for ind in np.arange(0, len(ind_name_list)):
         for p in np.arange(1, no_polder+1):
-            if ind in [4,7,8]:
+            if ind in [3,6,7]:
                 df = pd.concat( [df.copy(),pd.DataFrame([{'Year':year, 'Strategy':strategy, 'Indicator': ind_name_list[ind], 'Polder':p, 'Value': np.mean(ind_value_list[ind][polmat==p]) }])] )
             elif ind in [9,10]:
                 df = pd.concat( [df.copy(),pd.DataFrame([{'Year':year, 'Strategy':strategy, 'Indicator': ind_name_list[ind], 'Polder':p, 'Value': ind_value_list[ind][p-1] }])] )

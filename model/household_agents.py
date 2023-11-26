@@ -5,9 +5,9 @@ Created on Wed Dec  7 10:19:01 2022
 @author: lorinc
 """
 
-def agent_functions(wlog_sev):
+def agent_functions(wlog_sev, farmsize, householdsize, fam_member_12, leasedarea):
 
-    import numpy as np
+#    import numpy as np
     
     """
     Agent to describe the rural households
@@ -31,18 +31,18 @@ def agent_functions(wlog_sev):
     # "large": np.random.normal(loc=6.07, scale=(6.07-3.04)/3.0)
     # }
     
-    farmsize = {
-    "small": 0.51,
-    "med": 2.02,
-    "large": 6.07
-    }
+    # farmsize = {
+    # "small": 0.51,
+    # "med": 2.02,
+    # "large": 6.07
+    # }
     
-    tot_pop_agr = {
-    "small": 47.0/100.,
-    "med": 8./100.,
-    "large": 1./100.,
-    "landless": 44./100.
-    }
+    # tot_pop_agr = {
+    # "small": 47.0/100.,
+    # "med": 8./100.,
+    # "large": 1./100.,
+    # "landless": 44./100.
+    # }
     
     # householdsize = {
     # "small": np.random.normal(loc=4.15, scale=(4.15-1.0)/3.0),
@@ -51,12 +51,12 @@ def agent_functions(wlog_sev):
     # "landless": np.random.normal(loc=4.15, scale=(4.15-1.0)/3.0)
     # }
 
-    householdsize = {
-    "small": 4.15,
-    "med": 4.15,
-    "large": 4.15,
-    "landless": 4.15,
-    }
+    # householdsize = {
+    # "small": 4.15,
+    # "med": 4.15,
+    # "large": 4.15,
+    # "landless": 4.15,
+    # }
 
     # fam_member_12 = {
     # "small": np.random.normal(loc=1.0375, scale=1.0375/3.0),
@@ -65,12 +65,12 @@ def agent_functions(wlog_sev):
     # "landless": np.random.normal(loc=1.0375, scale=1.0375/3.0)
     # }
  
-    fam_member_12 = {
-    "small": 1.0375,
-    "med": 1.0375,
-    "large": 1.0375,
-    "landless": 1.0375,
-    }
+    # fam_member_12 = {
+    # "small": 1.0375,
+    # "med": 1.0375,
+    # "large": 1.0375,
+    # "landless": 1.0375,
+    # }
     
     # leasedarea = {
     # "small": np.random.normal(loc=0.1, scale=(0.1-0)/3.0),
@@ -78,38 +78,38 @@ def agent_functions(wlog_sev):
     # "large": np.random.normal(loc=0.4, scale=(0.4-0)/3.0)
     # }
 
-    leasedarea = {
-    "small": 0.1,
-    "med": 0.3,
-    "large": 0.4,
-    }
+    # leasedarea = {
+    # "small": 0.1,
+    # "med": 0.3,
+    # "large": 0.4,
+    # }
          
-    croppping_pattern = {
-        "rice": 
-            {
-            "small": 70./100.,
-            "med": 50./100.,
-            "large": 30./100.
-            },
-        "rice-fish":
-            {
-            "small": 20./100.,
-            "med": 20./100.,
-            "large": 20./100.,
-            },
-        "fish":
-            {
-            "small": 10./100.,
-            "med": 25./100.,
-            "large": 20./100.,
-            },
-        "shrimp":
-            {
-            "small": 0./100.,
-            "med": 5./100.,
-            "large": 30./100.
-            }
-    }
+    # croppping_pattern = {
+    #     "rice": 
+    #         {
+    #         "small": 70./100.,
+    #         "med": 50./100.,
+    #         "large": 30./100.
+    #         },
+    #     "rice-fish":
+    #         {
+    #         "small": 20./100.,
+    #         "med": 20./100.,
+    #         "large": 20./100.,
+    #         },
+    #     "fish":
+    #         {
+    #         "small": 10./100.,
+    #         "med": 25./100.,
+    #         "large": 20./100.,
+    #         },
+    #     "shrimp":
+    #         {
+    #         "small": 0./100.,
+    #         "med": 5./100.,
+    #         "large": 30./100.
+    #         }
+    # }
 
     #Household income additional activities
     hh_income_additional = {
@@ -126,12 +126,12 @@ def agent_functions(wlog_sev):
     "large": 0.3
     }   
 
-    #Irrigation % of farms
-    irrigation_perc = {
-    "small": 11.3/100.,
-    "med": 74.6/100.,
-    "large": 70.30/100.
-    }
+    # #Irrigation % of farms
+    # irrigation_perc = {
+    # "small": 11.3/100.,
+    # "med": 74.6/100.,
+    # "large": 70.30/100.
+    # }
     
     #Farm production
     farmprod = {
@@ -943,17 +943,11 @@ def agent_functions(wlog_sev):
     #FUNCTIONS
     #Farm production
     #Rice
-    farm_prod['rice'] = (1-wlog_sev)*farmprod['rice'] #ton/hectare
+    farm_prod['rice'] = wlog_sev*farmprod['rice'] #ton/hectare
     #Fish
-    if wlog_sev > 0.6:
-        farm_prod['fish'] = (farmprod['fish']*((1-wlog_sev)+0.6))
-    else:
-        farm_prod['fish'] = farmprod['fish']
+    farm_prod['fish'] = wlog_sev*farmprod['fish'] #ton/hectare
     #Shrimp
-    if wlog_sev > 0.6:
-        farm_prod['shrimp'] = (farmprod['shrimp']*((1-wlog_sev)+0.6))
-    else:
-        farm_prod['shrimp'] = farmprod['shrimp']
+    farm_prod['shrimp'] = wlog_sev*farmprod['shrimp'] #ton/hectare
         
     #Farm production per household category
     for hh in ['small', 'med', 'large']:
