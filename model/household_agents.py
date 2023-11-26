@@ -943,11 +943,11 @@ def agent_functions(wlog_sev, farmsize, householdsize, fam_member_12, leasedarea
     #FUNCTIONS
     #Farm production
     #Rice
-    farm_prod['rice'] = wlog_sev*farmprod['rice'] #ton/hectare
+    farm_prod['rice'] = (1-wlog_sev)*farmprod['rice'] #ton/hectare
     #Fish
-    farm_prod['fish'] = wlog_sev*farmprod['fish'] #ton/hectare
+    farm_prod['fish'] = (1-wlog_sev)*farmprod['fish'] #ton/hectare
     #Shrimp
-    farm_prod['shrimp'] = wlog_sev*farmprod['shrimp'] #ton/hectare
+    farm_prod['shrimp'] = (1-wlog_sev)*farmprod['shrimp'] #ton/hectare
         
     #Farm production per household category
     for hh in ['small', 'med', 'large']:
