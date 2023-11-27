@@ -240,6 +240,9 @@ landowner_agents_xy = np.zeros((np.shape(elevmat)[0], np.shape(elevmat)[1], 30))
 i=0  
 for x in np.arange(0, np.shape(elevmat)[0]):
     for y in np.arange(0, np.shape(elevmat)[1]):
+        #Agent distribution
+        
+        
         #landlesss agents
         landless_agents_perm[x,y] = np.around(hhmat[x,y] * tot_pop_agr['landless']*0.5)
         landless_agents_seas[x,y] = np.around(hhmat[x,y] * tot_pop_agr['landless']*0.5)
@@ -417,7 +420,7 @@ for year in np.arange(startyear, endyear+1,1):
     #tidalrange = 2. - 0.02 * dist2seamat
     #tidalrange[tidalrange < 0.]= 0.
     #tidalrange = np.full(np.shape(elevmat),2.5) #fixed tidal range  
-    tidalrange = 2.5 #fixed tidal range  
+    tidalrange = 2 #fixed tidal range  
 
     # Sea Level Rise        
     msl =  mslstart + slr2100 / (math.exp(kslr * (endyear - startyear)) - math.exp(0)) * (math.exp( kslr * ( year - startyear)) - 1)
@@ -429,7 +432,7 @@ for year in np.arange(startyear, endyear+1,1):
     lt_dry= np.maximum((msl + wl_dry - 0.5 * tidalrange), polderbedlevelmat)
     
     #Upstream flow - wet season water level
-    wl_wet=1.0
+    wl_wet=3.0
     #Wet low tide level
     lt_wet= np.maximum((msl + wl_wet - 0.5 * tidalrange), polderbedlevelmat)
     
